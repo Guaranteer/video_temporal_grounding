@@ -1,5 +1,11 @@
+import sys
+sys.path.append('..')
+import json
+from dataloaders.dataloader_base import Loader
 import torch
 import torch.nn as nn
+from torch.utils.data import Dataset, DataLoader
+from gensim.models import KeyedVectors
 
 
 
@@ -54,6 +60,8 @@ class Model(nn.Module):
         self.fc_score = nn.Linear(self.hidden_size, 1)
         self.fc_reg = nn.Linear(self.hidden_size, 2)
 
+        self.calculate_reg_loss = nn.SmoothL1Loss(reduction='sum')
+
     def forward(self, frame_vecs, frame_n, ques_vecs, ques_n, labels, regs, idxs):
 
         frame_vecs = torch.transpose(frame_vecs, 1, 2)
@@ -76,7 +84,7 @@ class Model(nn.Module):
 
         ques = ques_vecs.index_select(0, idx_sort)
         lengths = list(ques_n[idx_sort])
-        ques_packed = nn.utils.rnn.pack_padded_sequence(input=ques, lengths=lengths, batch_first=True)
+        ques_packed = nn.utils.rnn.pack_padded_sequence(ques, lengths=lengths, batch_first=True)
 
         h0 = torch.zeros(1, ques_vecs.size(0), self.hidden_size).to(self.device)
         ques_padded, ques_hidden = self.ques_rnn(ques_packed, h0)
@@ -93,32 +101,76 @@ class Model(nn.Module):
 
         fused_all = self.fc_base(fused_all)
         score = self.fc_score(fused_all)
-        score = score.squeeze(2)
+        score = nn.functional.softmax(score.squeeze(2),1)
         predict_reg = self.fc_reg(fused_all)
+
+        idxs = idxs.squeeze()
 
         flag = (labels - 0.5) * (-2)
         score_loss = torch.log(1 + torch.exp(flag * score)) # [45, 21, 9, 3]
-        raw_index = torch.range(0, ques_vecs.size(0), dtype=torch.int32)
+        raw_index = torch.arange(ques_vecs.size(0)).to(self.device)
+
+        # print(idxs.dtype)
+        # print(raw_index.dtype)
         pos_loss = score_loss[raw_index, idxs]
         all_score_loss = torch.sum(score_loss) / 78 + torch.sum(pos_loss)
 
+        pos_reg = predict_reg[raw_index, idxs]
+        reg_loss = self.calculate_reg_loss(pos_reg,regs)
+
+        all_loss = all_score_loss + 0.01 * reg_loss
+
+        # print(reg_loss)
+        # print(torch.sum(pos_loss))
+        # print(torch.sum(score_loss)/78)
+        return  all_loss, score, predict_reg
 
 
-        pass
+if __name__ == '__main__':
+
+    config_file = '../configs/config_base.json'
+
+    with open(config_file, 'r') as fr:
+        config = json.load(fr)
 
 
 
-# Device configuration
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    learning_rate = 0.001
+    model = Model(config, device).to(device)
 
-# Hyper parameters
-num_epochs = 5
-num_classes = 10
-batch_size = 100
-learning_rate = 0.001
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    print(list(model.named_parameters()))
 
-model = ConvNet(num_classes).to(device)
+    word2vec = KeyedVectors.load_word2vec_format(config["word2vec"], binary=True)
 
-# Loss and optimizer
-criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    train_dataset = Loader(config, config['train_data'],word2vec)
+
+    # Data loader (this provides queues and threads in a very simple way).
+    train_loader = DataLoader(dataset=train_dataset, batch_size=64, shuffle=True)
+
+    # When iteration starts, queue and thread start to load data from files.
+    data_iter = iter(train_loader)
+
+
+    frame_vecs, frame_n, ques_vecs, ques_n, labels, regs, idxs, windows, gt_windows = data_iter.next()
+
+    frame_vecs = frame_vecs.to(device)
+    frame_n = frame_n.to(device)
+    ques_vecs = ques_vecs.to(device)
+    ques_n = ques_n.to(device)
+    labels = labels.to(device)
+    regs = regs.to(device)
+    idxs = idxs.to(device)
+
+
+    # Forward pass
+    all_loss, score, predict_reg = model(frame_vecs, frame_n, ques_vecs, ques_n, labels, regs, idxs)
+
+    # Backward and optimize
+    optimizer.zero_grad()
+    all_loss.backward()
+    optimizer.step()
+    print(score,predict_reg)
+    print(all_loss)
+    print('success!!!')
