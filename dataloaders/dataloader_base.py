@@ -23,10 +23,13 @@ def load_json(filename):
 
 
 class Loader(Dataset):
-    def __init__(self, params, key_file, word2vec):
+    def __init__(self, params, key_file, word2vec, flag=False ):
         #general
         self.params = params
+        self.is_training = flag
         self.feature_path = params['feature_path']
+        self.feature_path_tsn = params['feature_path_tsn']
+
         self.max_batch_size = params['batch_size']
 
         # dataset
@@ -55,33 +58,54 @@ class Loader(Dataset):
         vid, duration, timestamps, sent = keys[0], keys[1], keys[2], keys[3]
 
         # video
-        if not os.path.exists(self.feature_path + '/%s.h5' % vid):
-            print('the video is not exist:', vid)
-        with h5py.File(self.feature_path + '/%s.h5' % vid, 'r') as fr:
-            feats = np.asarray(fr['feature'])
-        real_n_frames = len(feats)
-        n_frames = min(len(feats),self.max_frames)
-        frame_vecs[:n_frames, :] = feats[:n_frames,:]
-        frame_n = np.array(n_frames,dtype=np.int32)
+        if self.params['is_origin_dataset']:
+            if not os.path.exists(self.feature_path + '/%s.h5' % vid):
+                print('the video is not exist:', vid)
+            with h5py.File(self.feature_path + '/%s.h5' % vid, 'r') as fr:
+                feats = np.asarray(fr['feature'])
+        else:
+            vid = vid[2:]
+            while not os.path.exists(self.feature_path_tsn + '/feat/%s.h5' % vid):
+                keys = self.key_file[0]
+                vid, duration, timestamps, sent = keys[0], keys[1], keys[2], keys[3]
+                vid = vid[2:]
 
-        # [64,128,256,512] / [16,32,64,128]
-        frame_per_sec = real_n_frames/duration
+            with h5py.File(self.feature_path_tsn + '/feat/%s.h5' % vid, 'r') as hf:
+                fg = np.asarray(hf['fg'])
+                bg = np.asarray(hf['bg'])
+                feat = np.hstack([fg, bg])
+            with h5py.File(self.feature_path_tsn + '/flow/%s.h5' % vid, 'r') as hf:
+                fg2 = np.asarray(hf['fg'])
+                bg2 = np.asarray(hf['bg'])
+                feat2 = np.hstack([fg2, bg2])
+            feats = feat + feat2
+
+
+        # if not os.path.exists(self.feature_path + '/%s.h5' % vid):
+        #     print('the video is not exist:', vid)
+        # with h5py.File(self.feature_path + '/%s.h5' % vid, 'r') as fr:
+        #     feats = np.asarray(fr['feature'])
+
+        inds = np.floor(np.arange(0, len(feats), len(feats) / self.max_frames)).astype(int)
+        frames = feats[inds, :]
+        frames = np.vstack(frames)
+        frame_vecs[:self.max_frames, :] = frames[:self.max_frames, :]
+        frame_n = np.array(len(frame_vecs),dtype=np.int32)
+
+        # [32,64,128,256] / [8,16,32,64]
+        frame_per_sec = self.max_frames/duration
         start_frame = round(frame_per_sec * timestamps[0])
         end_frame = round(frame_per_sec * timestamps[1]) - 1
         gt_windows = np.array([start_frame, end_frame], dtype=np.float32)
-        if start_frame > 767:
-            start_frame = 703
-            end_frame = 767
-        if end_frame > 767:
-            end_frame = 767
-        widths = np.array([64, 128, 256, 512])
-        nums = (768-widths*0.75)/(widths*0.25)
+
+        widths = np.array([32, 64, 128, 256])
+        nums = (self.max_frames-widths*0.75)/(widths*0.25)
         nums = nums.astype(np.int) # [45,21,9,3]
         labels = [[0]*num for num in nums]
         windows = list()
         cur_best = -2
         best_window = [0, 0]
-        best_pos = [0, 63]
+        best_pos = [0, 31]
         for i in range(len(widths)):
             num = nums[i]
             width = widths[i]
@@ -125,9 +149,10 @@ class Loader(Dataset):
 
 
     def __len__(self):
-
-        return self.dataset_size
-
+        if self.is_training:
+            return self.dataset_size
+        else:
+            return 1280
 
 if __name__ == '__main__':
 

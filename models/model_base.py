@@ -24,27 +24,31 @@ class Model(nn.Module):
         self.hidden_size = params['hidden_size']
 
         self.conv_bottom = nn.Sequential(
-            nn.Conv1d(self.input_video_dim, self.hidden_size, kernel_size=3, stride=1, padding=1),
+            nn.Conv1d(self.input_video_dim, self.hidden_size, kernel_size=15, stride=1, padding=7),
             nn.BatchNorm1d(self.hidden_size),
-            nn.ReLU())
+            nn.ReLU(),
+            nn.Conv1d(self.hidden_size, self.hidden_size, kernel_size=15, stride=1, padding=7),
+            nn.BatchNorm1d(self.hidden_size),
+            nn.ReLU()
+        )
 
         self.conv_encoder_64 = nn.Sequential(
-            nn.Conv1d(self.hidden_size, self.hidden_size, kernel_size=64, stride=16),
+            nn.Conv1d(self.hidden_size, self.hidden_size, kernel_size=32, stride=8),
             nn.BatchNorm1d(self.hidden_size),
             nn.ReLU())
 
         self.conv_encoder_128 = nn.Sequential(
-            nn.Conv1d(self.hidden_size, self.hidden_size, kernel_size=128, stride=32),
+            nn.Conv1d(self.hidden_size, self.hidden_size, kernel_size=64, stride=16),
             nn.BatchNorm1d(self.hidden_size),
             nn.ReLU())
 
         self.conv_encoder_256 = nn.Sequential(
-            nn.Conv1d(self.hidden_size, self.hidden_size, kernel_size=256, stride=64),
+            nn.Conv1d(self.hidden_size, self.hidden_size, kernel_size=128, stride=32),
             nn.BatchNorm1d(self.hidden_size),
             nn.ReLU())
 
         self.conv_encoder_512 = nn.Sequential(
-            nn.Conv1d(self.hidden_size, self.hidden_size, kernel_size=512, stride=128),
+            nn.Conv1d(self.hidden_size, self.hidden_size, kernel_size=256, stride=64),
             nn.BatchNorm1d(self.hidden_size),
             nn.ReLU())
 
@@ -60,7 +64,7 @@ class Model(nn.Module):
         self.fc_score = nn.Linear(self.hidden_size, 1)
         self.fc_reg = nn.Linear(self.hidden_size, 2)
 
-        self.calculate_reg_loss = nn.SmoothL1Loss(reduction='sum')
+        self.calculate_reg_loss = nn.SmoothL1Loss(reduction='elementwise_mean')
 
     def forward(self, frame_vecs, frame_n, ques_vecs, ques_n, labels, regs, idxs):
 
@@ -112,13 +116,16 @@ class Model(nn.Module):
 
         # print(idxs.dtype)
         # print(raw_index.dtype)
-        pos_loss = score_loss[raw_index, idxs]
-        all_score_loss = torch.sum(score_loss) / 78 + torch.sum(pos_loss)
+        # pos_loss = score_loss[raw_index, idxs]
+        # all_score_loss = torch.sum(score_loss) / 78 + torch.sum(pos_loss)
+
+        pos_loss = -torch.log(score[raw_index, idxs])
+        all_score_loss = torch.mean(pos_loss, 0)
 
         pos_reg = predict_reg[raw_index, idxs]
         reg_loss = self.calculate_reg_loss(pos_reg,regs)
 
-        all_loss = all_score_loss + 0.01 * reg_loss
+        all_loss = all_score_loss #+ 0.001 * reg_loss
 
         # print(reg_loss)
         # print(torch.sum(pos_loss))

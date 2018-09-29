@@ -20,16 +20,16 @@ class Trainer(object):
         self.word2vec = KeyedVectors.load_word2vec_format(params["word2vec"], binary=True)
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-        self.model = Model(config, self.device).to(self.device)
+        self.model = Model(params, self.device).to(self.device)
 
-        train_dataset = Loader(config, config['train_data'], self.word2vec)
-        val_dataset = Loader(config, config['val_data'], self.word2vec)
-        test_dataset = Loader(config, config['test_data'], self.word2vec)
+        train_dataset = Loader(params, params['train_data'], self.word2vec, flag=True)
+        val_dataset = Loader(params, params['val_data'], self.word2vec)
+        test_dataset = Loader(params, params['test_data'], self.word2vec)
 
 
         self.train_loader = DataLoader(dataset=train_dataset, batch_size=64, shuffle=True)
-        self.val_loader = DataLoader(dataset=val_dataset, batch_size=64, shuffle=True)
-        self.test_loader = DataLoader(dataset=test_dataset, batch_size=64, shuffle=True)
+        self.val_loader = DataLoader(dataset=val_dataset, batch_size=64, shuffle=False)
+        self.test_loader = DataLoader(dataset=test_dataset, batch_size=64, shuffle=False)
 
         weight_p, bias_p = [], []
         for name, p in self.model.named_parameters():
@@ -37,7 +37,7 @@ class Trainer(object):
                 bias_p += [p]
             else:
                 weight_p += [p]
-        self.optimizer = torch.optim.Adam([{'params': weight_p, 'weight_decay': self.params['regularization_beta']},
+        self.optimizer = torch.optim.Adam([{'params': weight_p, 'weight_decay': 0},
                                            {'params': bias_p, 'weight_decay': 0}
                                            ], lr=self.params['learning_rate'])
 
@@ -65,8 +65,12 @@ class Trainer(object):
         print(self.params)
         print('=================================')
 
+        self.evaluate(self.test_loader)
+
         for i_epoch in range(self.params['max_epoches']):
+
             self.model.train()
+
             t_begin = time.time()
             avg_batch_loss = self.train_one_epoch(i_epoch)
             t_end = time.time()
@@ -75,9 +79,9 @@ class Trainer(object):
             if i_epoch % self.params['evaluate_interval'] == 0 and i_epoch != 0:
                 print('=================================')
                 print('Overall evaluation')
-                print('=================================')
-                print('train set evaluation')
-                train_acc = self.evaluate(self.train_loader)
+                # print('=================================')
+                # print('train set evaluation')
+                # train_acc = self.evaluate(self.train_loader)
                 print('=================================')
                 print('valid set evaluation')
                 valid_acc = self.evaluate(self.val_loader)
@@ -106,7 +110,7 @@ class Trainer(object):
         print('=================================')
         print('Evaluating best model in file', self.best_model, '...')
         if self.best_model is not None:
-            self.model.load_state_dict(torch.load('.ckpt'))
+            self.model.load_state_dict(torch.load(self.best_model))
             self.evaluate(self.test_loader)
         else:
             print('ERROR: No checkpoint available!')
@@ -133,10 +137,10 @@ class Trainer(object):
             # Backward and optimize
             self.optimizer.zero_grad()
             batch_loss.backward()
+            torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
             self.optimizer.step()
 
             self.lr_epoch += 1
-            i_batch += 1
             loss_sum += batch_loss.item()
 
             if i_batch % self.params['display_batch_interval'] == 0:
@@ -159,7 +163,7 @@ class Trainer(object):
         # IoU_thresh = [0.1, 0.2, 0.3, 0.4, 0.5]
         # top1,top5,top10
 
-        all_correct_num_topn_IoU = np.zeros(shape=[3,5],dtype=np.float32)
+        all_correct_num_topn_IoU = np.zeros(shape=[2,2],dtype=np.float32)
         all_retrievd = 0.0
 
         self.model.eval()
@@ -190,7 +194,7 @@ class Trainer(object):
         print(avg_correct_num_topn_IoU)
         print('=================================')
 
-        acc = avg_correct_num_topn_IoU[1,4]
+        acc = avg_correct_num_topn_IoU[0,0]
 
         return acc
 

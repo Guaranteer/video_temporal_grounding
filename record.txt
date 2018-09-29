@@ -1,3 +1,6 @@
 TACOS: train 75/1604 val 27/964 test 25/722  127
 
 Activity-net: c3d 411.97684305291585（8 frames of each unit） 截断到768  [64, 128,256,512](也就是[8，16，32，64]) 75% overlap
+
+
+bad 0.005, 1280/1280
