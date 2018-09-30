@@ -1,9 +1,8 @@
 import sys
 sys.path.append('..')
 import json
-from dataloaders.dataloader_cspn import Loader
-from models.model_cspn import Model
-from torch.utils.data import Dataset, DataLoader
+from dataloaders.dataloader_rnn import Loader
+from models.model_rnn import Model
 import time
 from gensim.models import KeyedVectors
 import os
@@ -31,8 +30,19 @@ class Trainer(object):
                                                     decay_steps=self.params['lr_decay_n_iters'],
                                                     decay_rate=self.params['lr_decay_rate'], staircase=True)
 
+
+
+
         self.optimizer = tf.train.AdamOptimizer(learning_rates)
-        self.train_proc = self.optimizer.minimize(self.model.loss, global_step=global_step)
+
+        gradients = self.optimizer.compute_gradients(self.model.loss)
+        capped_gradients = [(tf.clip_by_value(grad, -5., 5.), var) for grad, var in gradients if grad is not None]
+        self.train_proc = self.optimizer.apply_gradients(capped_gradients, global_step)
+
+        # self.train_proc = self.optimizer.minimize(self.model.loss, global_step=global_step)
+        # trainable_variables = tf.trainable_variables()
+        # grads, _ = tf.clip_by_value(tf.gradients(self.model.loss, trainable_variables), -5, 5)
+        # self.train_proc = self.optimizer.apply_gradients(zip(grads, trainable_variables))
 
 
         self.model_path = os.path.join(self.params['cache_dir'])
@@ -61,6 +71,7 @@ class Trainer(object):
         print(self.params)
         print('=================================')
 
+        self.evaluate(self.val_loader)
 
         for i_epoch in range(self.params['max_epoches']):
             t_begin = time.time()
@@ -126,8 +137,7 @@ class Trainer(object):
             batch_data[self.model.frame_len] = frame_n
             batch_data[self.model.ques_vecs] = ques_vecs
             batch_data[self.model.ques_len] = ques_n
-            batch_data[self.model.start] = labels[:,:,0]
-            batch_data[self.model.end] = labels[:,:,1]
+            batch_data[self.model.gt_predict] = labels
             batch_data[self.model.is_training] = True
             batch_data[self.model.dropout] = self.params['dropout_prob']
             batch_data[self.model.batch_size] = len(frame_vecs)
@@ -135,7 +145,6 @@ class Trainer(object):
             # Forward pass
             _, batch_loss = self.sess.run(
                                         [self.train_proc, self.model.loss], feed_dict=batch_data)
-
 
 
 
@@ -175,42 +184,69 @@ class Trainer(object):
             batch_data[self.model.frame_len] = frame_n
             batch_data[self.model.ques_vecs] = ques_vecs
             batch_data[self.model.ques_len] = ques_n
-            batch_data[self.model.start] = labels[:,:,0]
-            batch_data[self.model.end] = labels[:,:,1]
+            batch_data[self.model.gt_predict] = labels
             batch_data[self.model.is_training] = False
             batch_data[self.model.dropout] = 0
             batch_data[self.model.batch_size] = batch_size
 
             # Forward pass
-            batch_loss, predict_matrix = self.sess.run(
-                                        [self.model.loss, self.model.predict_matrix], feed_dict=batch_data)
-
-
+            batch_loss, frame_score = self.sess.run(
+                                        [self.model.test_loss, self.model.frame_score], feed_dict=batch_data)
 
 
 
             for i in range(batch_size):
-                predict_matrix_i = predict_matrix[i]
-                candidate_num = 50
-                predict_score = np.zeros([candidate_num], dtype=np.float32)
-                predict_windows = np.zeros([candidate_num, 2], dtype=np.float32)
-                for cond_i in range(candidate_num):
-                    max = np.max(predict_matrix_i)
-                    idxs = np.where(predict_matrix_i == max)
-                    start = idxs[0]
-                    end = idxs[1]
-                    if len(start) != 1:
-                        start = start[0]
-                        end = end[0]
-                    if start == end:
-                        continue
-                    predict_score[cond_i] = max
-                    predict_windows[cond_i,:] = [start,end]
-                    predict_matrix_i[start,end] = -1
+                # frame_pred = frame_score[i]
+                # frame_pred = (frame_pred - np.mean(frame_pred)) / np.std(frame_pred)
+                # scale = max(max(frame_pred), -min(frame_pred)) / 0.5
+                # frame_pred = frame_pred / (scale + 1e-3) + 0.5
+                # frame_pred_in = np.log(frame_pred)
+                # frame_pred_out = np.log(1 - frame_pred)
+                # candidate_num = 20
+                # start_end_matrix = np.zeros([self.params['max_frames'], self.params['max_frames']], dtype=np.float32)
+                # for start in range(self.params['max_frames']):
+                #     for end in range(self.params['max_frames']):
+                #         if start == end:
+                #             start_end_matrix[start, end] = frame_pred_in[start] + np.sum(frame_pred_out[:start]) + np.sum(frame_pred_out[end+1:])
+                #         elif end > start:
+                #             start_end_matrix[start, end] = start_end_matrix[start, end - 1] + frame_pred_in[end] - frame_pred_out[end]
+                #         else:
+                #             start_end_matrix[start, end] = -1e9
+                #
+                # if i_batch % 100 == 0 and i_batch % batch_size == i:
+                #     print(gt_windows[i])
+                #     print(frame_pred)
+                #     # print(start_end_matrix)
+                #
+                #
+                # predict_matrix_i = start_end_matrix
+                #
+                #
+                # predict_score = np.zeros([candidate_num], dtype=np.float32)
+                # predict_windows = np.zeros([candidate_num, 2], dtype=np.float32)
+                #
+                # for cond_i in range(candidate_num):
+                #     max_v = np.max(predict_matrix_i)
+                #     idxs = np.where(predict_matrix_i == max_v)
+                #     start = idxs[0][0]
+                #     end = idxs[1][0]
+                #
+                #     predict_score[cond_i] = max_v
+                #     predict_windows[cond_i,:] = [start,end]
+                #
+                #     start_left = max(start-10,0)
+                #     start_right = min(start+10, self.params['max_frames'])
+                #     end_left = max(end-10,0)
+                #     end_right = min(end+10, self.params['max_frames'])
+                #
+                #     predict_matrix_i[start_left:start_right, end_left:end_right] = -1e10
+                #
+                # if i_batch % 100 == 0 and i_batch % batch_size == i:
+                #     # print(predict_score)
+                #     print(predict_windows)
 
+                predict_score, predict_windows = self.propose_field(frame_score, batch_size, i_batch, i, gt_windows)
 
-                # print(predict_score)
-                # print(predict_windows)
 
                 result = criteria.compute_IoU_recall(predict_score, predict_windows, gt_windows[i])
                 all_correct_num_topn_IoU += result
@@ -233,10 +269,63 @@ class Trainer(object):
         return acc
 
 
+    def propose_field(self, frame_score, batch_size, i_batch, i, gt_windows):
+
+        frame_pred = frame_score[i]
+        frame_pred = (frame_pred - np.mean(frame_pred)) / np.std(frame_pred)
+        scale = max(max(frame_pred), -min(frame_pred)) / 0.5
+        frame_pred = frame_pred / (scale + 1e-3) + 0.5
+        frame_pred_in = np.log(frame_pred)
+        frame_pred_out = np.log(1 - frame_pred)
+        candidate_num = 20
+        start_end_matrix = np.zeros([self.params['max_frames'], self.params['max_frames']], dtype=np.float32)
+        for start in range(self.params['max_frames']):
+            for end in range(self.params['max_frames']):
+                if start == end:
+                    start_end_matrix[start, end] = frame_pred_in[start] + np.sum(frame_pred_out[:start]) + np.sum(
+                        frame_pred_out[end + 1:])
+                elif end > start:
+                    start_end_matrix[start, end] = start_end_matrix[start, end - 1] + frame_pred_in[end] - \
+                                                   frame_pred_out[end]
+                else:
+                    start_end_matrix[start, end] = -1e9
+
+        if i_batch % 100 == 0 and i_batch % batch_size == i:
+            print(gt_windows[i])
+            print(frame_pred)
+            # print(start_end_matrix)
+
+        predict_matrix_i = start_end_matrix
+
+        predict_score = np.zeros([candidate_num], dtype=np.float32)
+        predict_windows = np.zeros([candidate_num, 2], dtype=np.float32)
+
+        for cond_i in range(candidate_num):
+            max_v = np.max(predict_matrix_i)
+            idxs = np.where(predict_matrix_i == max_v)
+            start = idxs[0][0]
+            end = idxs[1][0]
+
+            predict_score[cond_i] = max_v
+            predict_windows[cond_i, :] = [start, end]
+
+            start_left = max(start - 10, 0)
+            start_right = min(start + 10, self.params['max_frames'])
+            end_left = max(end - 10, 0)
+            end_right = min(end + 10, self.params['max_frames'])
+
+            predict_matrix_i[start_left:start_right, end_left:end_right] = -1e10
+
+        if i_batch % 100 == 0 and i_batch % batch_size == i:
+            # print(predict_score)
+            print(predict_windows)
+
+        return predict_score, predict_windows
+
 
 if __name__ == '__main__':
 
-    config_file = '../configs/config_cspn.json'
+    config_file = '../configs/config_rnn.json'
 
     with open(config_file, 'r') as fr:
         config = json.load(fr)

@@ -49,7 +49,7 @@ class Model(object):
         with tf.variable_scope("Embedding_Encoder_Layer"):
             video_encoder_features = residual_block(input_frame_vecs,
                 num_blocks = 1,
-                num_conv_layers = 3,
+                num_conv_layers = 4,
                 kernel_size = 7,
                 mask = self.frame_mask,
                 num_filters = self.hidden_size,
@@ -61,7 +61,7 @@ class Model(object):
 
             ques_encoder_features = residual_block(input_ques_vecs,
                 num_blocks = 1,
-                num_conv_layers = 2,
+                num_conv_layers = 3,
                 kernel_size = 5,
                 mask = self.ques_mask,
                 num_filters = self.hidden_size,
