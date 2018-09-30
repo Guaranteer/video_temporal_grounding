@@ -29,6 +29,10 @@ def count_total_variables():
     print ('Total tensors:', n_ts)
     print ('Total variables:', n_var)
 
+def mask_logits(inputs, mask, mask_value = -1e30):
+    shapes = inputs.shape.as_list()
+    mask = tf.cast(mask, tf.float32)
+    return inputs + mask_value * (1 - mask)
 
 def linear_layer(input_ts, output_dim, scope_name):
     # linear layer, input_ts should be a 2d tensor
@@ -36,6 +40,18 @@ def linear_layer(input_ts, output_dim, scope_name):
         w = tf.get_variable('w', shape=[input_ts.shape[1], output_dim], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer()) # initializer=tf.random_normal_initializer(stddev=0.03))
         b = tf.get_variable('b', shape=[output_dim], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer()) # initializer=tf.random_normal_initializer(stddev=0.03))
         linear_output = tf.matmul(input_ts, w) + b
+        return linear_output
+
+def linear_layer_3d(input, output_dim, scope_name):
+    dim_list = input.get_shape().as_list()
+    with tf.variable_scope(scope_name):
+        input_ts = tf.reshape(input, [-1, dim_list[-1]])
+        w = tf.get_variable('w', shape=[dim_list[-1], output_dim], dtype=tf.float32,
+                            initializer=tf.contrib.layers.xavier_initializer())  # initializer=tf.random_normal_initializer(stddev=0.03))
+        b = tf.get_variable('b', shape=[output_dim], dtype=tf.float32,
+                            initializer=tf.contrib.layers.xavier_initializer())  # initializer=tf.random_normal_initializer(stddev=0.03))
+        linear_output = tf.matmul(input_ts, w) + b
+        linear_output = tf.reshape(linear_output, [-1, dim_list[1],output_dim])
         return linear_output
 
 def static_origin_lstm_layer(input_ts, hidden_dim, scope_name, input_len=None):

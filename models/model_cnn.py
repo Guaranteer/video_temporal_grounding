@@ -3,6 +3,7 @@ sys.path.append('..')
 import json
 from dataloaders.dataloader_rnn import Loader
 import tensorflow as tf
+from tools.main_layers import *
 import tools.layers as layers
 import tools.conv_utils as conv_utils
 
@@ -69,9 +70,9 @@ class Model(object):
 
             att_score = tf.matmul(frame_embedding, ques_embedding, transpose_b=True)  # M*N1*K  ** M*N2*K  --> M*N1*N2
             mask_q = tf.expand_dims(self.ques_mask, 1)
-            S_ = tf.nn.softmax(layers.mask_logits(att_score, mask = mask_q))
+            S_ = tf.nn.softmax(mask_logits(att_score, mask = mask_q))
             mask_v = tf.expand_dims(self.frame_mask, 2)
-            S_T = tf.transpose(tf.nn.softmax(layers.mask_logits(att_score, mask = mask_v), axis = 1),(0,2,1))
+            S_T = tf.transpose(tf.nn.softmax(mask_logits(att_score, mask = mask_v), axis = 1),(0,2,1))
             self.v2q = tf.matmul(S_, ques_embedding)
             self.q2v = tf.matmul(tf.matmul(S_, S_T), frame_embedding)
             attention_outputs = tf.concat([frame_embedding, self.v2q, frame_embedding * self.v2q, frame_embedding * self.q2v], 2)
@@ -85,7 +86,7 @@ class Model(object):
 
         with tf.variable_scope("Output_Layer"):
 
-            logit_score = layers.linear_layer_3d(model_outputs, 1, scope_name='output_layer')
+            logit_score = linear_layer_3d(model_outputs, 1, scope_name='output_layer')
             logit_score = tf.squeeze(logit_score, 2)
             logit_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits= logit_score, labels=self.gt_predict)
             avg_logit_loss = tf.reduce_mean(tf.reduce_sum(logit_loss,1))
