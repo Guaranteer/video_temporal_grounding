@@ -34,7 +34,11 @@ class Trainer(object):
 
 
         self.optimizer = tf.train.AdamOptimizer(learning_rates)
-        self.train_proc = self.optimizer.minimize(self.model.loss, global_step=global_step)
+        gradients = self.optimizer.compute_gradients(self.model.loss)
+        capped_gradients = [(tf.clip_by_value(grad, -5., 5.), var) for grad, var in gradients if grad is not None]
+        self.train_proc = self.optimizer.apply_gradients(capped_gradients, global_step)
+
+        # self.train_proc = self.optimizer.minimize(self.model.loss, global_step=global_step)
 
 
 

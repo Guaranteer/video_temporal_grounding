@@ -138,7 +138,7 @@ class Trainer(object):
             self.lr_epoch += 1
             loss_sum += batch_loss.item()
 
-            if i_batch % self.params['display_batch_interval'] == 0:
+            if i_batch % self.params['display_batch_interval'] == 0 and i_batch != 0:
                 t2 = time.time()
                 print('Epoch %d, Batch %d, loss = %.4f, %.3f seconds/batch' % ( i_epoch, i_batch, loss_sum / i_batch ,
                     (t2 - t1) / self.params['display_batch_interval']))
