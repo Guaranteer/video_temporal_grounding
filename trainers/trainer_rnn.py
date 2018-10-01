@@ -35,14 +35,12 @@ class Trainer(object):
 
         self.optimizer = tf.train.AdamOptimizer(learning_rates)
 
-        gradients = self.optimizer.compute_gradients(self.model.loss)
-        capped_gradients = [(tf.clip_by_value(grad, -5., 5.), var) for grad, var in gradients if grad is not None]
-        self.train_proc = self.optimizer.apply_gradients(capped_gradients, global_step)
+        # gradients = self.optimizer.compute_gradients(self.model.loss)
+        # capped_gradients = [(tf.clip_by_value(grad, -5., 5.), var) for grad, var in gradients if grad is not None]
+        # self.train_proc = self.optimizer.apply_gradients(capped_gradients, global_step)
 
-        # self.train_proc = self.optimizer.minimize(self.model.loss, global_step=global_step)
-        # trainable_variables = tf.trainable_variables()
-        # grads, _ = tf.clip_by_value(tf.gradients(self.model.loss, trainable_variables), -5, 5)
-        # self.train_proc = self.optimizer.apply_gradients(zip(grads, trainable_variables))
+        self.train_proc = self.optimizer.minimize(self.model.loss, global_step=global_step)
+
 
 
         self.model_path = os.path.join(self.params['cache_dir'])
@@ -139,7 +137,6 @@ class Trainer(object):
             batch_data[self.model.ques_len] = ques_n
             batch_data[self.model.gt_predict] = labels
             batch_data[self.model.is_training] = True
-            batch_data[self.model.dropout] = self.params['dropout_prob']
             batch_data[self.model.batch_size] = len(frame_vecs)
 
             # Forward pass
@@ -186,7 +183,6 @@ class Trainer(object):
             batch_data[self.model.ques_len] = ques_n
             batch_data[self.model.gt_predict] = labels
             batch_data[self.model.is_training] = False
-            batch_data[self.model.dropout] = 0
             batch_data[self.model.batch_size] = batch_size
 
             # Forward pass
@@ -206,7 +202,7 @@ class Trainer(object):
             loss_sum += batch_loss
 
 
-            if i_batch % 10 == 0:
+            if i_batch % 100 == 0:
                 print('Batch %d, loss = %.4f' % (i_batch, loss_sum / i_batch))
 
 

@@ -4,7 +4,7 @@
     "lr_decay_rate": 0.8,
     "max_epoches": 1000,
     "early_stopping": 5,
-    "cache_dir": "../results/baseline/",
+    "cache_dir": "../results/rnn/",
     "display_batch_interval": 100,
     "evaluate_interval": 5,
 
@@ -21,9 +21,7 @@
     "hidden_size": 256,
 
     "word2vec": "/home1/zhangzhu/data/word2vec/word2vec.bin",
-    "word_embedding": "../data/embedding.pkl",
-    "word2index": "../data/word2index.pkl",
-    "index2word": "../data/index2word.pkl",
+
 
     "is_origin_dataset": true,
     "train_json": "../data/activity-net/train.json",

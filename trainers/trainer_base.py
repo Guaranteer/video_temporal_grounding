@@ -4,7 +4,6 @@ import json
 from dataloaders.dataloader_base import Loader
 from models.model_base import Model
 import torch
-import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 import time
 from gensim.models import KeyedVectors
@@ -49,10 +48,6 @@ class Trainer(object):
         self.best_model = None
         self.lr_epoch = 0
         # When iteration starts, queue and thread start to load data from files.
-
-
-
-
 
 
     def train(self):
@@ -160,8 +155,8 @@ class Trainer(object):
 
     def evaluate(self, data_loader):
 
-        # IoU_thresh = [0.1, 0.2, 0.3, 0.4, 0.5]
-        # top1,top5,top10
+        # IoU_thresh = [0.5,0.7]
+        # top1,top5
 
         all_correct_num_topn_IoU = np.zeros(shape=[2,2],dtype=np.float32)
         all_retrievd = 0.0

@@ -95,7 +95,7 @@ def conv1d_weightnorm(inputs, layer_idx, out_dim, kernel_size, padding="SAME", d
         V = tf.get_variable('V', shape=[kernel_size, in_dim, out_dim], dtype=tf.float32,
                             initializer=tf.random_normal_initializer(mean=0, stddev=tf.sqrt(
                                 4.0 * dropout / (kernel_size * in_dim))), trainable=True)
-        V_norm = tf.norm(V.initialized_value(), axis=[0, 1])  # V shape is M*N*k,  V_norm shape is k
+        # V_norm = tf.norm(V.initialized_value(), axis=[0, 1])  # V shape is M*N*k,  V_norm shape is k
         # g = tf.get_variable('g', dtype=tf.float32, initializer=V_norm, trainable=True)
         b = tf.get_variable('b', shape=[out_dim], dtype=tf.float32, initializer=tf.zeros_initializer(), trainable=True)
 

@@ -10,7 +10,7 @@
 
 
     "regularization_beta": 1e-7,
-    "dropout_prob": 0.8,
+    "dropout_prob": 0.9,
 
     "batch_size": 64,
 
@@ -19,6 +19,8 @@
     "input_ques_dim": 300,
     "max_words": 20,
     "hidden_size": 256,
+    "num_heads": 8,
+
 
     "word2vec": "/home1/zhangzhu/data/word2vec/word2vec.bin",
 

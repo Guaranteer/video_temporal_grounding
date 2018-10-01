@@ -1,8 +1,6 @@
 import sys
 sys.path.append('..')
 import json
-from dataloaders.dataloader_cspn import Loader
-from torch.utils.data import Dataset, DataLoader
 import tensorflow as tf
 from tools.main_layers import *
 
@@ -74,8 +72,7 @@ class Model(object):
 
         with tf.variable_scope("Context_to_Query_Attention_Layer"):
 
-            S = optimized_trilinear_for_attention([video_encoder_features, ques_encoder_features],
-                                                  self.max_frames, self.max_words, input_keep_prob = 1.0 - self.dropout)
+            S = tf.matmul(video_encoder_features, ques_encoder_features, transpose_b=True)
             mask_q = tf.expand_dims(self.ques_mask, 1)
             S_ = tf.nn.softmax(mask_logits(S, mask = mask_q))
             mask_v = tf.expand_dims(self.frame_mask, 2)
@@ -88,7 +85,7 @@ class Model(object):
             inputs = tf.concat(attention_outputs, axis = -1)
             self.enc = [conv(inputs, self.hidden_size, name = "input_projection")]
             for i in range(3):
-                if i % 2 == 0: # dropout every 2 blocks
+                if i % 2 == 0:
                     self.enc[i] = tf.nn.dropout(self.enc[i], 1.0 - self.dropout)
                 self.enc.append(
                     residual_block(self.enc[i],
@@ -116,9 +113,6 @@ class Model(object):
             outer = tf.matmul(tf.expand_dims(tf.nn.softmax(logits1), axis=2),
                               tf.expand_dims(tf.nn.softmax(logits2), axis=1))
             self.predict_matrix = tf.matrix_band_part(outer, 0, self.max_words)
-            # outer = tf.matrix_band_part(outer, 0, self.max_words)
-            # self.yp1 = tf.argmax(tf.reduce_max(outer, axis=2), axis=1)
-            # self.yp2 = tf.argmax(tf.reduce_max(outer, axis=1), axis=1)
             losses = tf.nn.softmax_cross_entropy_with_logits(
                 logits=logits1, labels=self.start)
             losses2 = tf.nn.softmax_cross_entropy_with_logits(

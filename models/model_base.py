@@ -8,9 +8,6 @@ from torch.utils.data import Dataset, DataLoader
 from gensim.models import KeyedVectors
 
 
-
-
-
 class Model(nn.Module):
     def __init__(self, params, device):
         super(Model, self).__init__()
@@ -125,11 +122,9 @@ class Model(nn.Module):
         pos_reg = predict_reg[raw_index, idxs]
         reg_loss = self.calculate_reg_loss(pos_reg,regs)
 
-        all_loss = all_score_loss #+ 0.001 * reg_loss
+        all_loss = all_score_loss + 0.001 * reg_loss
 
-        # print(reg_loss)
-        # print(torch.sum(pos_loss))
-        # print(torch.sum(score_loss)/78)
+
         return  all_loss, score, predict_reg
 
 

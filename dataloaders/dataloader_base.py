@@ -34,8 +34,6 @@ class Loader(Dataset):
 
         # dataset
         self.word2vec = word2vec
-        # self.word_embedding = load_file(params['word_embedding'])
-        # self.word2index = load_file(params['word2index'])
         self.key_file = load_json(key_file)
         self.dataset_size = len(self.key_file)
 
@@ -81,11 +79,6 @@ class Loader(Dataset):
             feats = feat + feat2
 
 
-        # if not os.path.exists(self.feature_path + '/%s.h5' % vid):
-        #     print('the video is not exist:', vid)
-        # with h5py.File(self.feature_path + '/%s.h5' % vid, 'r') as fr:
-        #     feats = np.asarray(fr['feature'])
-
         inds = np.floor(np.arange(0, len(feats), len(feats) / self.max_frames)).astype(int)
         frames = feats[inds, :]
         frames = np.vstack(frames)
@@ -128,18 +121,12 @@ class Loader(Dataset):
         idxs = np.array(np.where((labels > 0)),dtype=np.int64)
         windows = np.array(windows, dtype=np.float32)
 
-        # print(start_frame)
-        # print(end_frame)
-        # print(best_window)
-
         # question
         stopwords = ['.', '?', ',', '']
         sent = nltk.word_tokenize(sent)
         ques = [word.lower() for word in sent if word not in stopwords]
-        # print(ques)
         ques = [self.word2vec[word] for word in ques if word in self.word2vec]
         ques_feats = np.stack(ques, axis=0)
-        # print(len(ques))
         ques_n = np.array(min(len(ques), self.max_words),dtype=np.int32)
         ques_vecs[:ques_n, :] = ques_feats[:ques_n, :]
 

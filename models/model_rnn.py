@@ -4,7 +4,6 @@ import json
 from dataloaders.dataloader_rnn import Loader
 import tensorflow as tf
 import tools.layers as layers
-import tools.conv_utils as conv_utils
 
 
 
@@ -35,7 +34,6 @@ class Model(object):
         self.batch_size = tf.placeholder(tf.int32, [])
         self.is_training = tf.placeholder(tf.bool)
         self.gt_predict = tf.placeholder(tf.float32, [None, self.max_frames])
-        self.dropout = tf.placeholder_with_default(0.0, (), name="dropout")
 
         self.frame_mask = tf.sequence_mask(self.frame_len, maxlen=self.max_frames)
         self.ques_mask = tf.sequence_mask(self.ques_len, maxlen=self.max_words)
