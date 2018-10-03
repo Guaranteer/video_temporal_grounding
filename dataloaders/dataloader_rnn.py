@@ -33,7 +33,7 @@ class Loader(object):
         self.word2vec = word2vec
         self.key_file = load_json(key_file)
         if self.is_training == True:
-            self.key_file = self.key_file[:12800]
+            self.key_file = self.key_file
         else:
             self.key_file = self.key_file[:1280]
 

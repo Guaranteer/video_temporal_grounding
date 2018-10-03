@@ -34,11 +34,11 @@ class Trainer(object):
 
 
         self.optimizer = tf.train.AdamOptimizer(learning_rates)
-        gradients = self.optimizer.compute_gradients(self.model.loss)
-        capped_gradients = [(tf.clip_by_value(grad, -5., 5.), var) for grad, var in gradients if grad is not None]
-        self.train_proc = self.optimizer.apply_gradients(capped_gradients, global_step)
+        # gradients = self.optimizer.compute_gradients(self.model.loss)
+        # capped_gradients = [(tf.clip_by_value(grad, -5., 5.), var) for grad, var in gradients if grad is not None]
+        # self.train_proc = self.optimizer.apply_gradients(capped_gradients, global_step)
 
-        # self.train_proc = self.optimizer.minimize(self.model.loss, global_step=global_step)
+        self.train_proc = self.optimizer.minimize(self.model.loss, global_step=global_step)
 
 
 
@@ -79,9 +79,9 @@ class Trainer(object):
             if i_epoch % self.params['evaluate_interval'] == 0 and i_epoch != 0:
                 print('=================================')
                 print('Overall evaluation')
-                print('=================================')
-                print('train set evaluation')
-                train_acc = self.evaluate(self.train_loader)
+                # print('=================================')
+                # print('train set evaluation')
+                # train_acc = self.evaluate(self.train_loader)
                 print('=================================')
                 print('valid set evaluation')
                 valid_acc = self.evaluate(self.val_loader)
