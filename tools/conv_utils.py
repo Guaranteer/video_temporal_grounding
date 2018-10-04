@@ -49,38 +49,7 @@ def normalize(inputs,
     return outputs
 
 
-def parse_list_or_default(params_str, number, default_val, delimitor=','):
-    param_list = []
-    if params_str == "":
-        param_list = [default_val] * number
-    else:
-        param_list = [int(x) for x in params_str.strip().split(delimitor)]
-    return param_list
-
-
-def linear_mapping_stupid(inputs, out_dim, in_dim=None, dropout=1.0, var_scope_name="linear_mapping"):
-    with tf.variable_scope(var_scope_name):
-        print('name', tf.get_variable_scope().name)
-        input_shape_tensor = tf.shape(inputs)  # dynamic shape, no None
-        input_shape = inputs.get_shape().as_list()  # static shape. may has None
-        print('input_shape', input_shape)
-        assert len(input_shape) == 3
-        inputs = tf.reshape(inputs, [-1, input_shape_tensor[-1]])
-
-        linear_mapping_w = tf.get_variable("linear_mapping_w", [input_shape[-1], out_dim],
-                                           initializer=tf.random_normal_initializer(mean=0, stddev=tf.sqrt(
-                                               dropout * 1.0 / input_shape[-1])))
-        linear_mapping_b = tf.get_variable("linear_mapping_b", [out_dim], initializer=tf.zeros_initializer())
-
-        output = tf.matmul(inputs, linear_mapping_w) + linear_mapping_b
-        print('xxxxx_params', input_shape, out_dim)
-        # output = tf.reshape(output, [input_shape[0], -1, out_dim])
-        output = tf.reshape(output, [input_shape_tensor[0], -1, out_dim])
-
-    return output
-
-
-def linear_mapping(inputs, out_dim, in_dim=None, dropout=1.0, var_scope_name="linear_mapping"):
+def linear_mapping(inputs, out_dim, dropout=1.0, var_scope_name="linear_mapping"):
     with tf.variable_scope(var_scope_name):
         input_shape = inputs.get_shape().as_list()  # static shape. may has None
         return tf.contrib.layers.fully_connected(inputs=inputs, num_outputs=out_dim, activation_fn=None,
@@ -91,7 +60,7 @@ def linear_mapping(inputs, out_dim, in_dim=None, dropout=1.0, var_scope_name="li
                                                  biases_initializer=tf.zeros_initializer())
 
 
-def linear_mapping_weightnorm(inputs, out_dim, in_dim=None, dropout=1.0, var_scope_name="linear_mapping"):
+def linear_mapping_weightnorm(inputs, out_dim, dropout=1.0, var_scope_name="linear_mapping"):
     with tf.variable_scope(var_scope_name):
         input_shape = inputs.get_shape().as_list()  # static shape. may has None
         input_shape_tensor = tf.shape(inputs)
@@ -116,7 +85,7 @@ def linear_mapping_weightnorm(inputs, out_dim, in_dim=None, dropout=1.0, var_sco
         return inputs
 
 
-def conv1d_weightnorm(inputs, layer_idx, out_dim, kernel_size, padding="SAME", dropout=1.0,
+def conv1d_with_bias(inputs, layer_idx, out_dim, kernel_size, padding="SAME", dropout=1.0,
                       var_scope_name="conv_layer"):  # padding should take attention
 
     with tf.variable_scope("conv_layer_" + str(layer_idx)):
@@ -124,12 +93,7 @@ def conv1d_weightnorm(inputs, layer_idx, out_dim, kernel_size, padding="SAME", d
         V = tf.get_variable('V', shape=[kernel_size, in_dim, out_dim], dtype=tf.float32,
                             initializer=tf.random_normal_initializer(mean=0, stddev=tf.sqrt(
                                 4.0 * dropout / (kernel_size * in_dim))), trainable=True)
-        # V_norm = tf.norm(V.initialized_value(), axis=[0, 1])  # V shape is M*N*k,  V_norm shape is k
-        # g = tf.get_variable('g', dtype=tf.float32, initializer=V_norm, trainable=True)
         b = tf.get_variable('b', shape=[out_dim], dtype=tf.float32, initializer=tf.zeros_initializer(), trainable=True)
-
-        # use weight normalization (Salimans & Kingma, 2016)
-        # W = tf.reshape(g, [1, 1, out_dim]) * tf.nn.l2_normalize(V, [0, 1])
         inputs = tf.nn.bias_add(tf.nn.conv1d(value=inputs, filters=V, stride=1, padding=padding), b)
         return inputs
 
@@ -150,7 +114,7 @@ def conv_encoder_stack(inputs, nhids_list, kwidths_list, dropout_dict, mode):
         nout = nhids_list[layer_idx]
         if nin != nout:
             # mapping for res add
-            res_inputs = linear_mapping_weightnorm(next_layer, nout, dropout=dropout_dict['src'],
+            res_inputs = linear_mapping(next_layer, nout, dropout=dropout_dict['src'],
                                                    var_scope_name="linear_mapping_cnn_" + str(layer_idx))
         else:
             res_inputs = next_layer
@@ -160,7 +124,7 @@ def conv_encoder_stack(inputs, nhids_list, kwidths_list, dropout_dict, mode):
             keep_prob=dropout_dict['hid'],
             is_training=mode)
 
-        next_layer = conv1d_weightnorm(inputs=next_layer, layer_idx=layer_idx, out_dim=nout * 2,
+        next_layer = conv1d_with_bias(inputs=next_layer, layer_idx=layer_idx, out_dim=nout * 2,
                                        kernel_size=kwidths_list[layer_idx], padding="SAME", dropout=dropout_dict['hid'],
                                        var_scope_name="conv_layer_" + str(layer_idx))
         ''' 
@@ -193,7 +157,7 @@ def conv_decoder_stack(target_embed, enc_output, inputs, nhids_list, kwidths_lis
         nout = nhids_list[layer_idx]
         if nin != nout:
             # mapping for res add
-            res_inputs = linear_mapping_weightnorm(next_layer, nout, dropout=dropout_dict['hid'],
+            res_inputs = linear_mapping(next_layer, nout, dropout=dropout_dict['hid'],
                                                    var_scope_name="linear_mapping_cnn_" + str(layer_idx))
         else:
             res_inputs = next_layer
@@ -206,7 +170,7 @@ def conv_decoder_stack(target_embed, enc_output, inputs, nhids_list, kwidths_lis
         next_layer = tf.pad(next_layer, [[0, 0], [kwidths_list[layer_idx] - 1, kwidths_list[layer_idx] - 1], [0, 0]],
                             "CONSTANT")
 
-        next_layer = conv1d_weightnorm(inputs=next_layer, layer_idx=layer_idx, out_dim=nout * 2,
+        next_layer = conv1d_with_bias(inputs=next_layer, layer_idx=layer_idx, out_dim=nout * 2,
                                        kernel_size=kwidths_list[layer_idx], padding="VALID",
                                        dropout=dropout_dict['hid'], var_scope_name="conv_layer_" + str(layer_idx))
         '''
@@ -230,9 +194,6 @@ def conv_decoder_stack(target_embed, enc_output, inputs, nhids_list, kwidths_lis
         next_layer = gated_linear_units(next_layer)
 
         # add attention
-        # decoder output -->linear mapping to embed, + target embed,  query decoder output a, softmax --> scores, scores*encoder_output_c-->output,  output--> linear mapping to nhid+  decoder_output -->
-        # if False:
-        #     print('add attention in:', layer_idx)
         att_out = make_attention(target_embed, enc_output, next_layer, layer_idx)
         next_layer = (next_layer + att_out) * tf.sqrt(0.5)
 
@@ -244,9 +205,8 @@ def conv_decoder_stack(target_embed, enc_output, inputs, nhids_list, kwidths_lis
 def make_attention(target_embed, encoder_output, decoder_hidden, layer_idx):
     with tf.variable_scope("attention_layer_" + str(layer_idx)):
         embed_size = target_embed.get_shape().as_list()[-1]  # k
-        dec_hidden_proj = linear_mapping_weightnorm(decoder_hidden, embed_size,
+        dec_hidden_proj = linear_mapping(decoder_hidden, embed_size,
                                                     var_scope_name="linear_mapping_att_frame")  # M*N1*k1 --> M*N1*k
-        # ques_hidden_proj = linear_mapping(encoder_output.ques_final_state, embed_size, var_scope_name="linear_mapping_att_query")
         ques_hidden_proj = tf.expand_dims(encoder_output.ques_final_state, 1)
         dec_rep = (dec_hidden_proj + target_embed + ques_hidden_proj) * tf.sqrt(0.3333)
 
@@ -261,7 +221,7 @@ def make_attention(target_embed, encoder_output, decoder_hidden, layer_idx):
         att_out = tf.matmul(att_score, encoder_output_c) * length[1] * tf.sqrt(
             1.0 / length[1])  # M*N1*N2  ** M*N2*K   --> M*N1*k
 
-        att_out = linear_mapping_weightnorm(att_out, decoder_hidden.get_shape().as_list()[-1],
+        att_out = linear_mapping(att_out, decoder_hidden.get_shape().as_list()[-1],
                                             var_scope_name="linear_mapping_att_out")
     return att_out
 
