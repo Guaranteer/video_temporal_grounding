@@ -92,22 +92,22 @@ class Trainer(object):
                 # print('test set evaluation')
                 # test_acc = self.evaluate(self.test_loader)
                 # print('=================================')
-            elif i_epoch%2 == 0:
+            elif i_epoch%1 == 0:
                 print('=================================')
                 print('valid set evaluation')
                 valid_acc = self.evaluate(self.val_loader)
                 print('=================================')
 
-                if valid_acc > best_epoch_acc:
-                    best_epoch_acc = valid_acc
-                    best_epoch_id = i_epoch
-                    print('Saving new best model...')
-                    timestamp = time.strftime("%m%d%H%M%S", time.localtime())
-                    self.last_checkpoint = self.model_saver.save(self.sess, self.model_path + timestamp)
-                else:
-                    if i_epoch - best_epoch_id >= self.params['early_stopping']:
-                        print('Early stopped. Best loss %.3f at epoch %d' % (best_epoch_acc, best_epoch_id))
-                        break
+            if valid_acc > best_epoch_acc:
+                best_epoch_acc = valid_acc
+                best_epoch_id = i_epoch
+                print('Saving new best model...')
+                timestamp = time.strftime("%m%d%H%M%S", time.localtime())
+                self.last_checkpoint = self.model_saver.save(self.sess, self.model_path + timestamp)
+            else:
+                if i_epoch - best_epoch_id >= self.params['early_stopping']:
+                    print('Early stopped. Best loss %.3f at epoch %d' % (best_epoch_acc, best_epoch_id))
+                    break
 
         print('=================================')
         print('Evaluating best model in file', self.last_checkpoint, '...')

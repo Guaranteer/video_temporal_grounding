@@ -30,16 +30,15 @@ class Trainer(object):
                                                     decay_steps=self.params['lr_decay_n_iters'],
                                                     decay_rate=self.params['lr_decay_rate'], staircase=True)
 
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            self.optimizer = tf.train.AdamOptimizer(learning_rates)
 
+            # gradients = self.optimizer.compute_gradients(self.model.loss)
+            # capped_gradients = [(tf.clip_by_value(grad, -5., 5.), var) for grad, var in gradients if grad is not None]
+            # self.train_proc = self.optimizer.apply_gradients(capped_gradients, global_step)
 
-
-        self.optimizer = tf.train.AdamOptimizer(learning_rates)
-
-        # gradients = self.optimizer.compute_gradients(self.model.loss)
-        # capped_gradients = [(tf.clip_by_value(grad, -5., 5.), var) for grad, var in gradients if grad is not None]
-        # self.train_proc = self.optimizer.apply_gradients(capped_gradients, global_step)
-
-        self.train_proc = self.optimizer.minimize(self.model.loss, global_step=global_step)
+            self.train_proc = self.optimizer.minimize(self.model.loss, global_step=global_step)
 
 
 
@@ -69,7 +68,7 @@ class Trainer(object):
         print(self.params)
         print('=================================')
 
-        self.evaluate(self.val_loader)
+        # self.evaluate(self.val_loader)
 
         for i_epoch in range(self.params['max_epoches']):
             t_begin = time.time()
