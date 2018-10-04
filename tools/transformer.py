@@ -275,19 +275,22 @@ def multihead_attention(queries,
         # Restore shape
         outputs = tf.concat(tf.split(outputs, num_heads, axis=0), axis=2)  # (N, T_q, C)
 
+        # outputs = tf.layers.batch_normalization(outputs, training=is_training)
+
         # Residual connection
-        outputs += queries
+        outputs = (outputs + queries)* tf.sqrt(0.5)
 
         # Normalize
         outputs = normalize(outputs)  # (N, T_q, C)
+
 
     return outputs
 
 
 def feedforward(inputs,
                 num_units=[2048, 512],
-                scope="multihead_attention",
-                reuse=None):
+                scope="feedforward_after_multihead_attention",
+                reuse=None,is_training=True):
     '''Point-wise feed forward net.
 
     Args:
@@ -311,11 +314,15 @@ def feedforward(inputs,
                   "activation": None, "use_bias": True}
         outputs = tf.layers.conv1d(**params)
 
+        # outputs = tf.layers.batch_normalization(outputs, training=is_training)
+
+
         # Residual connection
-        outputs += inputs
+        outputs = (outputs + inputs)* tf.sqrt(0.5)
 
         # Normalize
         outputs = normalize(outputs)
+
 
     return outputs
 

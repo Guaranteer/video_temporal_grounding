@@ -19,6 +19,35 @@ https://arxiv.org/abs/1705.03122.
 
 import tensorflow as tf
 
+def normalize(inputs,
+              epsilon=1e-8,
+              scope="ln",
+              reuse=None):
+    '''Applies layer normalization.
+
+    Args:
+      inputs: A tensor with 2 or more dimensions, where the first dimension has
+        `batch_size`.
+      epsilon: A floating number. A very small number for preventing ZeroDivision Error.
+      scope: Optional scope for `variable_scope`.
+      reuse: Boolean, whether to reuse the weights of a previous layer
+        by the same name.
+
+    Returns:
+      A tensor with the same shape and data dtype as `inputs`.
+    '''
+    with tf.variable_scope(scope, reuse=reuse):
+        inputs_shape = inputs.get_shape()
+        params_shape = inputs_shape[-1:]
+
+        mean, variance = tf.nn.moments(inputs, [-1], keep_dims=True)
+        beta = tf.Variable(tf.zeros(params_shape))
+        gamma = tf.Variable(tf.ones(params_shape))
+        normalized = (inputs - mean) / ((variance + epsilon) ** (.5))
+        outputs = gamma * normalized + beta
+
+    return outputs
+
 
 def parse_list_or_default(params_str, number, default_val, delimitor=','):
     param_list = []
@@ -145,8 +174,14 @@ def conv_encoder_stack(inputs, nhids_list, kwidths_list, dropout_dict, mode):
             activation_fn=None,
             scope="conv_layer_"+str(layer_idx))
         '''
+        # next_layer = tf.layers.batch_normalization(next_layer, training=mode)
+
         next_layer = gated_linear_units(next_layer)
         next_layer = (next_layer + res_inputs) * tf.sqrt(0.5)
+        next_layer = normalize(next_layer)
+
+
+
 
     return next_layer
 
@@ -189,6 +224,8 @@ def conv_decoder_stack(target_embed, enc_output, inputs, nhids_list, kwidths_lis
         assert len(layer_shape) == 3
         # to avoid using future information
         next_layer = next_layer[:, 0:-kwidths_list[layer_idx] + 1, :]
+
+        next_layer = normalize(next_layer)
 
         next_layer = gated_linear_units(next_layer)
 
