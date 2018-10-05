@@ -48,7 +48,7 @@ class Model(object):
             frame_embedding = transformer.normalize(frame_embedding)
 
 
-            # frame_embedding = tf.contrib.layers.dropout(frame_embedding, self.dropout, is_training=self.is_training)
+            frame_embedding = tf.contrib.layers.dropout(frame_embedding, self.dropout, is_training=self.is_training)
 
         with tf.variable_scope("Ques_Embedding_Encoder_Layer"):
 
@@ -57,7 +57,7 @@ class Model(object):
                                                                            input_len=self.ques_len)
             ques_embedding = transformer.normalize(ques_embedding)
 
-            # ques_embedding = tf.contrib.layers.dropout(ques_embedding, self.dropout, is_training=self.is_training)
+            ques_embedding = tf.contrib.layers.dropout(ques_embedding, self.dropout, is_training=self.is_training)
 
 
 
@@ -88,7 +88,7 @@ class Model(object):
                                                                     input_len=self.frame_len)
             model_outputs = transformer.normalize(model_outputs)
 
-            # model_outputs = tf.contrib.layers.dropout(model_outputs, self.dropout, is_training=self.is_training)
+            model_outputs = tf.contrib.layers.dropout(model_outputs, self.dropout, is_training=self.is_training)
 
 
         with tf.variable_scope("Output_Layer"):
