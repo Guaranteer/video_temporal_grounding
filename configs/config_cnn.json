@@ -10,7 +10,7 @@
 
 
     "regularization_beta": 1e-7,
-    "dropout_prob": 0.7,
+    "dropout_prob": 0.8,
 
     "batch_size": 64,
 

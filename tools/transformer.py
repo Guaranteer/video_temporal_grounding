@@ -314,9 +314,6 @@ def feedforward(inputs,
                   "activation": None, "use_bias": True}
         outputs = tf.layers.conv1d(**params)
 
-        # outputs = tf.layers.batch_normalization(outputs, training=is_training)
-
-
         # Residual connection
         outputs = (outputs + inputs)* tf.sqrt(0.5)
 
