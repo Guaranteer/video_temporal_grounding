@@ -142,7 +142,7 @@ def conv_encoder_stack(inputs, nhids_list, kwidths_list, dropout_dict, mode):
 
         next_layer = gated_linear_units(next_layer)
         next_layer = (next_layer + res_inputs) * tf.sqrt(0.5)
-        next_layer = normalize(next_layer)
+        # next_layer = normalize(next_layer)
 
 
 

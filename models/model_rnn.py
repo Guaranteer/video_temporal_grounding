@@ -45,7 +45,6 @@ class Model(object):
             input_frame_vecs = tf.contrib.layers.dropout(self.frame_vecs, self.dropout, is_training=self.is_training)
             frame_embedding, _ = layers.dynamic_origin_bilstm_layer(input_frame_vecs, self.hidden_size, 'frame_embedding',
                                                                 input_len=self.frame_len)
-            frame_embedding = transformer.normalize(frame_embedding)
 
 
             frame_embedding = tf.contrib.layers.dropout(frame_embedding, self.dropout, is_training=self.is_training)
@@ -55,7 +54,6 @@ class Model(object):
             input_ques_vecs = tf.contrib.layers.dropout(self.ques_vecs, self.dropout, is_training=self.is_training)
             ques_embedding, ques_states = layers.dynamic_origin_bilstm_layer(input_ques_vecs, self.hidden_size, 'ques_embedding',
                                                                            input_len=self.ques_len)
-            ques_embedding = transformer.normalize(ques_embedding)
 
             ques_embedding = tf.contrib.layers.dropout(ques_embedding, self.dropout, is_training=self.is_training)
 
@@ -86,7 +84,6 @@ class Model(object):
             attention_outputs = tf.contrib.layers.dropout(attention_outputs, self.dropout, is_training=self.is_training)
             model_outputs, _ = layers.dynamic_origin_bilstm_layer(attention_outputs, self.hidden_size, 'model_layer',
                                                                     input_len=self.frame_len)
-            model_outputs = transformer.normalize(model_outputs)
 
             model_outputs = tf.contrib.layers.dropout(model_outputs, self.dropout, is_training=self.is_training)
 

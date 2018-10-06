@@ -13,9 +13,6 @@ rnn full training  0.2122 0.4129 0.3714 0.4946
 cnn  0.190625  0.36484376  0.34140626 0.46484375
 
 cnn 2e-4 256 full training     0.2242 0.4305 0.3714 0.4946
-cnn 2e-4 256 full training  ln 0.211 0.431(0.224)
+cnn 2e-4 256 full training  ln 0.211 0.431(0.224)     0.210 0.423(0.218)
 
 
-
-s cnn full cnn
-s rnn ln rnn
