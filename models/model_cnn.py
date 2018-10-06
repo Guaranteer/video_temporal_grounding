@@ -45,7 +45,7 @@ class Model(object):
             frame_next_layer = conv_utils.linear_mapping(frame_next_layer, self.hidden_size,
                                                          dropout=self.dropout,
                                                          var_scope_name="linear_mapping_before_cnn")
-            # frame_next_layer = transformer.normalize(frame_next_layer)
+            frame_next_layer = transformer.normalize(frame_next_layer)
 
             frame_next_layer += transformer.positional_encoding_v2(frame_next_layer,
                                             num_units=self.hidden_size,
@@ -83,7 +83,7 @@ class Model(object):
             ques_next_layer = conv_utils.linear_mapping(ques_next_layer, self.hidden_size,
                                                              dropout=self.dropout,
                                                              var_scope_name="linear_mapping_before_cnn")
-            # ques_next_layer = transformer.normalize(ques_next_layer)
+            ques_next_layer = transformer.normalize(ques_next_layer)
 
 
             ques_next_layer += transformer.positional_encoding_v2(ques_next_layer,
@@ -130,7 +130,7 @@ class Model(object):
             model_next_layer = conv_utils.linear_mapping(attention_outputs, self.hidden_size,
                                                          dropout=self.dropout,
                                                          var_scope_name="linear_mapping_before_model_layer")
-            # model_next_layer = transformer.normalize(model_next_layer)
+            model_next_layer = transformer.normalize(model_next_layer)
             for i in range(2):
                 with tf.variable_scope("stack_%s" % i):
                     model_next_layer = conv_utils.conv_encoder_stack(model_next_layer, [self.hidden_size,self.hidden_size], [3,3],

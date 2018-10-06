@@ -3,7 +3,7 @@
     "lr_decay_n_iters": 3000,
     "lr_decay_rate": 0.8,
     "max_epoches": 1000,
-    "early_stopping": 5,
+    "early_stopping": 20,
     "cache_dir": "../results/cnn/",
     "display_batch_interval": 100,
     "evaluate_interval": 15,

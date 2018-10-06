@@ -275,7 +275,6 @@ def multihead_attention(queries,
         # Restore shape
         outputs = tf.concat(tf.split(outputs, num_heads, axis=0), axis=2)  # (N, T_q, C)
 
-        # outputs = tf.layers.batch_normalization(outputs, training=is_training)
 
         # Residual connection
         outputs = (outputs + queries)* tf.sqrt(0.5)
