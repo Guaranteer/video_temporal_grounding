@@ -1,8 +1,8 @@
 import sys
 sys.path.append('..')
 import json
-from dataloaders.dataloader_rnn import Loader
-from models.model_rnn import Model
+from dataloaders.dataloader_rnn_dynamic import Loader
+from models.model_rnn_dynamic import Model
 import time
 from gensim.models import KeyedVectors
 import os
@@ -192,7 +192,7 @@ class Trainer(object):
 
             for i in range(batch_size):
 
-                predict_score, predict_windows = self.propose_field(frame_score, batch_size, i_batch, i, gt_windows)
+                predict_score, predict_windows = self.propose_field(frame_score, batch_size, i_batch, i, gt_windows, frame_n)
                 result = criteria.compute_IoU_recall(predict_score, predict_windows, gt_windows[i])
                 all_correct_num_topn_IoU += result
 
@@ -214,7 +214,7 @@ class Trainer(object):
         return acc
 
 
-    def propose_field(self, frame_score, batch_size, i_batch, i, gt_windows):
+    def propose_field(self, frame_score, batch_size, i_batch, i, gt_windows, frame_n):
 
         frame_pred = frame_score[i]
         frame_pred = (frame_pred - np.mean(frame_pred)) / np.std(frame_pred)
@@ -223,9 +223,10 @@ class Trainer(object):
         frame_pred_in = np.log(frame_pred)
         frame_pred_out = np.log(1 - frame_pred)
         candidate_num = 1
-        start_end_matrix = np.zeros([self.params['max_frames'], self.params['max_frames']], dtype=np.float32)
-        for start in range(self.params['max_frames']):
-            for end in range(self.params['max_frames']):
+        cur_max_frame = np.max(frame_n)
+        start_end_matrix = np.zeros([cur_max_frame, cur_max_frame], dtype=np.float32)
+        for start in range(cur_max_frame):
+            for end in range(cur_max_frame):
                 if start == end:
                     start_end_matrix[start, end] = frame_pred_in[start] + np.sum(frame_pred_out[:start]) + np.sum(
                         frame_pred_out[end + 1:])
@@ -254,9 +255,9 @@ class Trainer(object):
             predict_windows[cond_i, :] = [start, end]
 
             start_left = max(start - 10, 0)
-            start_right = min(start + 10, self.params['max_frames'])
+            start_right = min(start + 10, cur_max_frame)
             end_left = max(end - 10, 0)
-            end_right = min(end + 10, self.params['max_frames'])
+            end_right = min(end + 10, cur_max_frame)
 
             predict_matrix_i[start_left:start_right, end_left:end_right] = -1e10
 
@@ -268,7 +269,7 @@ class Trainer(object):
 
 if __name__ == '__main__':
 
-    config_file = '../configs/config_rnn.json'
+    config_file = '../configs/config_rnn_dynamic.json'
 
     with open(config_file, 'r') as fr:
         config = json.load(fr)

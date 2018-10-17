@@ -71,9 +71,9 @@ def compute_IoU_recall_top_n(predict_windows, gt_windows, picks, top_n, IoU_thre
 
 def compute_IoU_recall(predict_score, predict_windows, gt_windows):
 
-    IoU_threshs = [0.5, 0.7]
+    IoU_threshs = [0.1, 0.3, 0.5, 0.7]
     top_n_list = [1]
-    topn_IoU_matric = np.zeros([1, 2],dtype=np.float32)
+    topn_IoU_matric = np.zeros([1, 4],dtype=np.float32)
 
     for i, IoU_thresh in enumerate(IoU_threshs):
         picks = nms_temporal(predict_score, predict_windows, IoU_thresh-0.05)
