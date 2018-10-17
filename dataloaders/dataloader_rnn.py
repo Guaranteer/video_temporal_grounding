@@ -32,10 +32,10 @@ class Loader(object):
         # dataset
         self.word2vec = word2vec
         self.key_file = load_json(key_file)
-        # if self.is_training == True:
-        #     self.key_file = self.key_file
-        # else:
-        #     self.key_file = self.key_file[:1280]
+        if self.is_training == True:
+            self.key_file = self.key_file[:1280]
+        else:
+            self.key_file = self.key_file[:128]
 
         self.dataset_size = len(self.key_file)
         self.data_index = list(range(len(self.key_file)))

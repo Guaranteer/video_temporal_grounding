@@ -42,6 +42,7 @@ def dataset_build(config):
 def longest_video(config):
     data_files = [config['train_data'], config['val_data'], config['test_data']]
     long = 0
+    length_set = dict()
     for data_file in data_files:
         key_file = load_json(data_file)
         for keys in key_file:
@@ -61,9 +62,14 @@ def longest_video(config):
                     feats = np.asarray(fr['feature'])
                     if len(feats) > long:
                         long = len(feats)
+                    if len(feats) in length_set:
+                        length_set[len(feats)] += 1
+                    else:
+                        length_set[len(feats)] = 1
+
 
     print(long)
-
+    print(length_set)
 
 if __name__ == '__main__':
 

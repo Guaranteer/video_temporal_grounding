@@ -2,7 +2,7 @@ import sys
 sys.path.append('..')
 import json
 from dataloaders.dataloader_rnn import Loader
-from models.model_rnn import Model
+from models.model_rnn_GAN import Model
 import time
 from gensim.models import KeyedVectors
 import os
@@ -25,22 +25,34 @@ class Trainer(object):
 
 
 
-        global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)
-        learning_rates = tf.train.exponential_decay(self.params['learning_rate'], global_step,
-                                                    decay_steps=self.params['lr_decay_n_iters'],
-                                                    decay_rate=self.params['lr_decay_rate'], staircase=True)
+        # global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)
+        # learning_rates = tf.train.exponential_decay(self.params['learning_rate'], global_step,
+        #                                             decay_steps=self.params['lr_decay_n_iters'],
+        #                                             decay_rate=self.params['lr_decay_rate'], staircase=True)
+        # self.optimizer = tf.train.AdamOptimizer(learning_rates)
+        # self.train_proc = self.optimizer.minimize(self.model.loss, global_step=global_step)
 
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        with tf.control_dependencies(update_ops):
-            self.optimizer = tf.train.AdamOptimizer(learning_rates)
+        # pre-train initialization
+        pre_global_step = tf.get_variable('pre_global_step', [], initializer=tf.constant_initializer(0), trainable=False)
+        pre_learning_rates = tf.train.exponential_decay(self.params['learning_rate'], pre_global_step, decay_steps=self.params['lr_decay_n_iters'], decay_rate=self.params['lr_decay_rate'], staircase=True)
+        pre_optimizer = tf.train.AdamOptimizer(pre_learning_rates)
+        self.pre_train_proc = pre_optimizer.minimize(self.model.G_pre_loss, global_step=pre_global_step)
 
-            # gradients = self.optimizer.compute_gradients(self.model.loss)
-            # capped_gradients = [(tf.clip_by_value(grad, -5., 5.), var) for grad, var in gradients if grad is not None]
-            # self.train_proc = self.optimizer.apply_gradients(capped_gradients, global_step)
+        # training(generator) initialization
+        # g_global_step = tf.get_variable('g_global_step', [], initializer=tf.constant_initializer(0), trainable=False)
+        # g_learning_rates = tf.train.exponential_decay(self.params['learning_rate']/2, g_global_step, decay_steps=self.params['lr_decay_n_iters'], decay_rate=self.params['lr_decay_rate'], staircase=True)
+        # g_optimizer = tf.train.AdamOptimizer(g_learning_rates)
+        self.g_train_proc = pre_optimizer.minimize(self.model.G_loss,global_step=pre_global_step,var_list=self.model.G_variables)
+        # g_grads_and_vars = g_optimizer.compute_gradients(self.model.G_loss, self.model.G_variables, aggregation_method=2)
+        # self.g_train_proc = g_optimizer.apply_gradients(g_grads_and_vars, global_step=g_global_step )
 
-            self.train_proc = self.optimizer.minimize(self.model.loss, global_step=global_step)
-
-
+        # discriminator initialization
+        d_global_step = tf.get_variable('d_global_step', [], initializer=tf.constant_initializer(0), trainable=False)
+        d_learning_rates = tf.train.exponential_decay(self.params['d_learning_rate'], d_global_step, decay_steps=self.params['d_lr_decay_n_iters'], decay_rate=self.params['d_lr_decay_rate'], staircase=True)
+        d_optimizer = tf.train.AdamOptimizer(d_learning_rates)
+        # self.d_train_proc = d_optimizer.minimize(self.model.D_loss,global_step=d_global_step,var_list=self.model.D_variables)
+        d_grads_and_vars = d_optimizer.compute_gradients(self.model.D_loss, self.model.D_variables, aggregation_method=2)
+        self.d_train_proc = d_optimizer.apply_gradients(d_grads_and_vars, global_step=d_global_step)
 
         self.model_path = os.path.join(self.params['cache_dir'])
         if not os.path.exists(self.model_path):
@@ -57,7 +69,6 @@ class Trainer(object):
         self.last_checkpoint = None
 
 
-
     def train(self):
         print('Trainnning begins......')
         best_epoch_acc = 0
@@ -70,11 +81,51 @@ class Trainer(object):
 
         # self.evaluate(self.val_loader)
 
+        # G_pretrain
+        for i_epoch in range(self.params['g_pretrain_epoch']):
+            t_begin = time.time()
+            avg_batch_loss = self.train_one_epoch(i_epoch,self.pre_train_proc,self.model.G_pre_loss)
+            t_end = time.time()
+            print('G Pretrain Epoch %d ends. Average loss %.3f. %.3f seconds/epoch' % (i_epoch, avg_batch_loss, t_end - t_begin))
+
+            if i_epoch %2 == 0:
+                print('=================================')
+                print('valid set evaluation')
+                valid_acc = self.evaluate(self.val_loader)
+                print('=================================')
+
+                # if valid_acc > best_epoch_acc:
+                #     best_epoch_acc = valid_acc
+                #     best_epoch_id = i_epoch
+                #     print('Saving new best model...')
+                #     timestamp = time.strftime("%m%d%H%M%S", time.localtime())
+                #     self.last_checkpoint = self.model_saver.save(self.sess, self.model_path + timestamp)
+
+        # D_pretrain
+        for i_epoch in range(self.params['g_pretrain_epoch']):
+            t_begin = time.time()
+            avg_batch_loss = self.train_one_epoch(i_epoch, self.d_train_proc, self.model.D_loss)
+            t_end = time.time()
+            print('D Pretrain Epoch %d ends. Average loss %.3f. %.3f seconds/epoch' % (i_epoch, avg_batch_loss, t_end - t_begin))
+
+        # iter train
         for i_epoch in range(self.params['max_epoches']):
             t_begin = time.time()
-            avg_batch_loss = self.train_one_epoch(i_epoch)
+            avg_batch_loss = self.train_one_epoch(i_epoch, self.g_train_proc, self.model.G_loss)
             t_end = time.time()
-            print('Epoch %d ends. Average loss %.3f. %.3f seconds/epoch' % (i_epoch, avg_batch_loss, t_end - t_begin))
+            print('Epoch %d of G ends. Average loss %.3f. %.3f seconds/epoch' % (i_epoch, avg_batch_loss, t_end - t_begin))
+
+            t_begin = time.time()
+            avg_batch_loss = self.train_one_epoch(i_epoch, self.g_train_proc, self.model.G_loss)
+            t_end = time.time()
+            print('Epoch %d of G ends. Average loss %.3f. %.3f seconds/epoch' % (
+            i_epoch, avg_batch_loss, t_end - t_begin))
+
+            t_begin = time.time()
+            avg_batch_loss = self.train_one_epoch(i_epoch, self.d_train_proc, self.model.D_loss)
+            t_end = time.time()
+            print('Epoch %d of D ends. Average loss %.3f. %.3f seconds/epoch' % (
+            i_epoch, avg_batch_loss, t_end - t_begin))
 
             if i_epoch % self.params['evaluate_interval'] == 0 and i_epoch != 0:
                 print('=================================')
@@ -117,9 +168,10 @@ class Trainer(object):
 
 
 
-    def train_one_epoch(self, i_epoch):
+    def train_one_epoch(self, i_epoch, train_proc, loss):
 
         loss_sum = 0
+        pure_loss_sum = 0
         t1 = time.time()
         i_batch = 0
 
@@ -139,18 +191,19 @@ class Trainer(object):
             batch_data[self.model.batch_size] = len(frame_vecs)
 
             # Forward pass
-            _, batch_loss = self.sess.run(
-                                        [self.train_proc, self.model.loss], feed_dict=batch_data)
-
+            _, batch_loss, pure_loss = self.sess.run(
+                                        [train_proc, loss, self.model.G_pre_loss], feed_dict=batch_data)
 
 
             i_batch += 1
             loss_sum += batch_loss
+            pure_loss_sum += pure_loss
 
             if i_batch % self.params['display_batch_interval'] == 0:
                 t2 = time.time()
                 print('Epoch %d, Batch %d, loss = %.4f, %.3f seconds/batch' % ( i_epoch, i_batch, loss_sum / i_batch ,
                     (t2 - t1) / self.params['display_batch_interval']))
+                print('Pure loss:', pure_loss_sum/i_batch)
                 t1 = t2
 
         avg_batch_loss = loss_sum / i_batch
@@ -186,7 +239,7 @@ class Trainer(object):
 
             # Forward pass
             batch_loss, frame_score = self.sess.run(
-                                        [self.model.test_loss, self.model.frame_score], feed_dict=batch_data)
+                                        [self.model.G_loss, self.model.frame_score], feed_dict=batch_data)
 
 
 
@@ -268,7 +321,7 @@ class Trainer(object):
 
 if __name__ == '__main__':
 
-    config_file = '../configs/config_rnn.json'
+    config_file = '../configs/config_rnn_GAN.json'
 
     with open(config_file, 'r') as fr:
         config = json.load(fr)
