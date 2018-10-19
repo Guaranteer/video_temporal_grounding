@@ -115,11 +115,11 @@ class Trainer(object):
             t_end = time.time()
             print('Epoch %d of G ends. Average loss %.3f. %.3f seconds/epoch' % (i_epoch, avg_batch_loss, t_end - t_begin))
 
-            t_begin = time.time()
-            avg_batch_loss = self.train_one_epoch(i_epoch, self.g_train_proc, self.model.G_loss)
-            t_end = time.time()
-            print('Epoch %d of G ends. Average loss %.3f. %.3f seconds/epoch' % (
-            i_epoch, avg_batch_loss, t_end - t_begin))
+            # t_begin = time.time()
+            # avg_batch_loss = self.train_one_epoch(i_epoch, self.g_train_proc, self.model.G_loss)
+            # t_end = time.time()
+            # print('Epoch %d of G ends. Average loss %.3f. %.3f seconds/epoch' % (
+            # i_epoch, avg_batch_loss, t_end - t_begin))
 
             t_begin = time.time()
             avg_batch_loss = self.train_one_epoch(i_epoch, self.d_train_proc, self.model.D_loss)
@@ -172,6 +172,7 @@ class Trainer(object):
 
         loss_sum = 0
         pure_loss_sum = 0
+        display_loss_sum = 0
         t1 = time.time()
         i_batch = 0
 
@@ -198,12 +199,15 @@ class Trainer(object):
             i_batch += 1
             loss_sum += batch_loss
             pure_loss_sum += pure_loss
+            display_loss_sum += batch_loss
 
             if i_batch % self.params['display_batch_interval'] == 0:
                 t2 = time.time()
-                print('Epoch %d, Batch %d, loss = %.4f, %.3f seconds/batch' % ( i_epoch, i_batch, loss_sum / i_batch ,
+                print('Epoch %d, Batch %d, G_loss = %.4f, %.3f seconds/batch' % ( i_epoch, i_batch, display_loss_sum/self.params['display_batch_interval'] ,
                     (t2 - t1) / self.params['display_batch_interval']))
-                print('Pure loss:', pure_loss_sum/i_batch)
+                print('Pure loss:', pure_loss_sum/self.params['display_batch_interval'])
+                display_loss_sum = 0
+                pure_loss_sum = 0
                 t1 = t2
 
         avg_batch_loss = loss_sum / i_batch
@@ -221,6 +225,8 @@ class Trainer(object):
         all_retrievd = 0.0
         i_batch = 0
         loss_sum = 0
+        pure_loss_sum = 0
+        d_loss_sum = 0
 
         for frame_vecs, frame_n, ques_vecs, ques_n, labels, gt_windows in data_loader.generate():
 
@@ -238,8 +244,8 @@ class Trainer(object):
             batch_data[self.model.batch_size] = batch_size
 
             # Forward pass
-            batch_loss, frame_score = self.sess.run(
-                                        [self.model.G_loss, self.model.frame_score], feed_dict=batch_data)
+            d_loss, pure_loss, batch_loss, frame_score = self.sess.run(
+                                        [self.model.D_loss, self.model.G_pre_loss, self.model.G_loss, self.model.frame_score], feed_dict=batch_data)
 
 
 
@@ -252,10 +258,12 @@ class Trainer(object):
             all_retrievd += batch_size
             i_batch += 1
             loss_sum += batch_loss
+            pure_loss_sum += pure_loss
+            d_loss_sum += d_loss
 
 
             if i_batch % 100 == 0:
-                print('Batch %d, loss = %.4f' % (i_batch, loss_sum / i_batch))
+                print('Batch %d, G_loss = %.4f, G_pure_loss = %.4f, D_loss = %.4f' % (i_batch, loss_sum / i_batch, pure_loss_sum/ i_batch, d_loss_sum/i_batch))
 
 
         avg_correct_num_topn_IoU = all_correct_num_topn_IoU / all_retrievd
@@ -263,7 +271,7 @@ class Trainer(object):
         print(avg_correct_num_topn_IoU)
         print('=================================')
 
-        acc = avg_correct_num_topn_IoU[0,3]
+        acc = avg_correct_num_topn_IoU[0,2]
         return acc
 
 

@@ -120,6 +120,7 @@ class Trainer(object):
     def train_one_epoch(self, i_epoch):
 
         loss_sum = 0
+        display_loss_sum = 0
         t1 = time.time()
         i_batch = 0
 
@@ -146,11 +147,13 @@ class Trainer(object):
 
             i_batch += 1
             loss_sum += batch_loss
+            display_loss_sum += batch_loss
 
             if i_batch % self.params['display_batch_interval'] == 0:
                 t2 = time.time()
-                print('Epoch %d, Batch %d, loss = %.4f, %.3f seconds/batch' % ( i_epoch, i_batch, loss_sum / i_batch ,
+                print('Epoch %d, Batch %d, loss = %.4f, %.3f seconds/batch' % ( i_epoch, i_batch, display_loss_sum / self.params['display_batch_interval'] ,
                     (t2 - t1) / self.params['display_batch_interval']))
+                display_loss_sum = 0
                 t1 = t2
 
         avg_batch_loss = loss_sum / i_batch
@@ -210,16 +213,18 @@ class Trainer(object):
         print(avg_correct_num_topn_IoU)
         print('=================================')
 
-        acc = avg_correct_num_topn_IoU[0,3]
+        acc = avg_correct_num_topn_IoU[0,2]
         return acc
 
 
     def propose_field(self, frame_score, batch_size, i_batch, i, gt_windows):
 
         frame_pred = frame_score[i]
-        frame_pred = (frame_pred - np.mean(frame_pred)) / np.std(frame_pred)
-        scale = max(max(frame_pred), -min(frame_pred)) / 0.5
-        frame_pred = frame_pred / (scale + 1e-3) + 0.5
+        max_pred = max(frame_pred)
+        if max_pred < 0.5:
+            frame_pred = (frame_pred - np.mean(frame_pred)) / np.std(frame_pred)
+            scale = max(max(frame_pred), -min(frame_pred)) / 0.5
+            frame_pred = frame_pred / (scale + 1e-3) + 0.5
         frame_pred_in = np.log(frame_pred)
         frame_pred_out = np.log(1 - frame_pred)
         candidate_num = 1

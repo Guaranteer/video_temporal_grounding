@@ -5,7 +5,7 @@
     "max_epoches": 1000,
     "early_stopping": 5,
     "cache_dir": "../results/rnn/",
-    "display_batch_interval": 50,
+    "display_batch_interval": 100,
     "evaluate_interval": 5,
 
 
@@ -20,8 +20,8 @@
     "max_words": 20,
     "hidden_size": 256,
 
-    "g_pretrain_epoch":5,
-    "d_pretrain_epoch":5,
+    "g_pretrain_epoch":4,
+    "d_pretrain_epoch":2,
     "d_learning_rate": 5e-3,
     "d_lr_decay_n_iters": 3000,
     "d_lr_decay_rate": 0.8,
