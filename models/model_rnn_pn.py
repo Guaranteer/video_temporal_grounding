@@ -5,6 +5,7 @@ from dataloaders.dataloader_rnn import Loader
 import tensorflow as tf
 import tools.layers as layers
 import tools.transformer as transformer
+import tools.conv_utils as conv_utils
 
 
 
@@ -104,16 +105,25 @@ class Model(object):
 
 
         with tf.variable_scope('Pointer_Layer'):
-            score_dist = logit_score
-            output = tf.nn.relu(layers.linear_layer(score_dist, self.hidden_size,scope_name='pointer_1'))
-            output = tf.nn.relu(layers.linear_layer(output, self.hidden_size/2,scope_name='pointer_2'))
-            output = tf.nn.relu(layers.linear_layer(output, self.hidden_size/4,scope_name='pointer_3'))
-            output = layers.linear_layer(output, 2, scope_name='pointrt_output')
+            score_dist = tf.nn.sigmoid(logit_score)
+            output = tf.nn.relu(conv_utils.conv1d_with_bias(tf.expand_dims(score_dist,2),1,16,5))
+            # output = tf.contrib.layers.dropout(output, self.dropout, is_training=self.is_training)
+            output = tf.nn.relu(conv_utils.conv1d_with_bias(output,2,32,10))
+            # output = tf.contrib.layers.dropout(output, self.dropout, is_training=self.is_training)
+            output = tf.nn.relu(conv_utils.conv1d_with_bias(output, 3, 64, 20))
+            # output = tf.contrib.layers.dropout(output, self.dropout, is_training=self.is_training)
+            output = tf.nn.relu(conv_utils.conv1d_with_bias(output,4,1,10))
+            # output = tf.contrib.layers.dropout(output, self.dropout, is_training=self.is_training)
+            # output = tf.nn.relu(layers.linear_layer(output, self.hidden_size,scope_name='pointer_1'))
+            # output = tf.nn.relu(layers.linear_layer(output, self.hidden_size/2,scope_name='pointer_2'))
+            # output = tf.nn.relu(layers.linear_layer(output, self.hidden_size/4,scope_name='pointer_3'))
+            output = layers.linear_layer(tf.squeeze(output,2), 2, scope_name='pointrt_output')
             self.predict_start_end = output
             gt_start_end = self.gt_windows
             pointer_loss = tf.reduce_mean(tf.square(tf.subtract(self.predict_start_end, gt_start_end)))
 
             all_variable = tf.trainable_variables()
+            # self.pn_variables = all_variable
             self.pn_variables = [vv for vv in all_variable if vv not in self.G_variables]
             pn_regularization_cost = tf.reduce_sum([tf.nn.l2_loss(v) for v in self.pn_variables])
             self.pn_loss = pointer_loss + self.regularization_beta * pn_regularization_cost

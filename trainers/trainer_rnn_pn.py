@@ -47,6 +47,11 @@ class Trainer(object):
         self.pn_train_proc = pn_optimizer.apply_gradients(pn_grads_and_vars, global_step=pn_global_step)
 
 
+        post_learning_rates = tf.train.exponential_decay(self.params['learning_rate']/10, pn_global_step,
+                                                    decay_steps=self.params['lr_decay_n_iters'],
+                                                    decay_rate=self.params['lr_decay_rate'], staircase=True)
+        post_optimizer = tf.train.AdamOptimizer(post_learning_rates)
+        self.post_train_proc = post_optimizer.minimize(self.model.pn_loss, var_list=self.model.G_variables, global_step=pn_global_step)
 
         self.model_path = os.path.join(self.params['cache_dir'])
         if not os.path.exists(self.model_path):
@@ -85,7 +90,7 @@ class Trainer(object):
             print('Epoch %d ends. Average loss %.3f. %.3f seconds/epoch' % (i_epoch, avg_batch_loss, t_end - t_begin))
 
             t_begin = time.time()
-            avg_batch_loss = self.train_one_epoch(i_epoch, self.pn_train_proc, self.model.pn_loss)
+            avg_batch_loss = self.train_one_epoch(i_epoch, self.pn_train_proc, self.model.pn_loss, post_train=True)
             t_end = time.time()
             print('Epoch %d ends. Average loss %.3f. %.3f seconds/epoch' % (i_epoch, avg_batch_loss, t_end - t_begin))
 
@@ -94,9 +99,9 @@ class Trainer(object):
                 print('=================================')
                 print('Overall evaluation')
                 print('=================================')
-                # print('train set evaluation')
-                # train_acc = self.evaluate(self.train_loader)
-                # print('=================================')
+                print('train set evaluation')
+                train_acc = self.evaluate(self.train_loader)
+                print('=================================')
                 print('valid set evaluation')
                 valid_acc = self.evaluate(self.val_loader)
                 print('=================================')
@@ -139,7 +144,7 @@ class Trainer(object):
 
 
 
-    def train_one_epoch(self, i_epoch, train_proc, loss):
+    def train_one_epoch(self, i_epoch, train_proc, loss, post_train=False):
 
         loss_sum = 0
         display_loss_sum = 0
@@ -163,11 +168,14 @@ class Trainer(object):
             batch_data[self.model.batch_size] = len(frame_vecs)
 
             # Forward pass
-            _, batch_loss = self.sess.run(
-                                        [train_proc, loss], feed_dict=batch_data)
-            # _, _, batch_loss, pn_loss = self.sess.run(
-            #     [self.pn_train_proc, train_proc, loss, self.model.pn_loss], feed_dict=batch_data)
-
+            if post_train == False:
+                _, batch_loss = self.sess.run(
+                                            [train_proc, loss], feed_dict=batch_data)
+                # _, _, batch_loss, pn_loss = self.sess.run(
+                #     [self.pn_train_proc, train_proc, loss, self.model.pn_loss], feed_dict=batch_data)
+            else:
+                _, _, batch_loss = self.sess.run(
+                                            [self.post_train_proc,train_proc, loss], feed_dict=batch_data)
 
             i_batch += 1
             loss_sum += batch_loss
