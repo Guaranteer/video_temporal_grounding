@@ -133,7 +133,7 @@ class Trainer(object):
 
             for i in range(5):
                 t_begin = time.time()
-                avg_batch_loss = self.train_one_epoch(i, self.pn_train_proc, self.model.pn_loss)
+                avg_batch_loss = self.train_one_epoch(i, self.pn_train_proc, self.model.pn_loss, post_train=True)
                 t_end = time.time()
                 print('Post Epoch %d ends. Average loss %.3f. %.3f seconds/epoch' % (i, avg_batch_loss, t_end - t_begin))
 
@@ -277,7 +277,6 @@ class Trainer(object):
     def propose_field(self, frame_score, batch_size, i_batch, i, gt_windows):
 
         frame_pred = frame_score[i]
-        max_pred = max(frame_pred)
         frame_pred = (frame_pred - np.mean(frame_pred)) / np.std(frame_pred)
         scale = max(max(frame_pred), -min(frame_pred)) / 0.5
         frame_pred = frame_pred / (scale + 1e-3) + 0.5
