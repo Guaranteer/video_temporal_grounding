@@ -2,6 +2,15 @@
     "learning_rate": 1e-3,
     "lr_decay_n_iters": 3000,
     "lr_decay_rate": 0.8,
+    "g_pretrain_epoch":4,
+    "d_pretrain_epoch":2,
+    "d_learning_rate": 5e-3,
+    "d_lr_decay_n_iters": 3000,
+    "d_lr_decay_rate": 0.8,
+    "pn_learning_rate": 1e-3,
+    "pn_lr_decay_n_iters": 3000,
+    "pn_lr_decay_rate": 0.8,
+
     "max_epoches": 1000,
     "early_stopping": 5,
     "cache_dir": "../results/rnn/",
@@ -15,21 +24,13 @@
     "batch_size": 64,
 
     "input_video_dim": 500,
-    "max_frames": 200,
+    "max_frames": 100,
     "input_ques_dim": 300,
     "max_words": 20,
     "hidden_size": 256,
 
-    "g_pretrain_epoch":4,
-    "d_pretrain_epoch":2,
-    "d_learning_rate": 5e-3,
-    "d_lr_decay_n_iters": 3000,
-    "d_lr_decay_rate": 0.8,
-
-    "word2vec": "/home1/zhangzhu/data/word2vec/word2vec.bin",
-
-
     "is_origin_dataset": true,
+    "word2vec": "/home1/zhangzhu/data/word2vec/word2vec.bin",
     "train_json": "../data/activity-net/train.json",
     "val_json": "../data/activity-net/val_1.json",
     "test_json": "../data/activity-net/val_2.json",

@@ -94,9 +94,8 @@ class Model(object):
 
             logit_score = layers.linear_layer_3d(model_outputs, 1, scope_name='output_layer')
             logit_score = tf.squeeze(logit_score, 2)
-            logit_loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits= logit_score, labels=self.gt_predict/ tf.reduce_sum(self.gt_predict, keepdims=True,axis=1))
 
-            # logit_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits= logit_score, labels=self.gt_predict)
+            logit_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits= logit_score, labels=self.gt_predict)
             avg_logit_loss = tf.reduce_mean(tf.reduce_sum(logit_loss,1))
 
             self.G_variables = tf.trainable_variables()
