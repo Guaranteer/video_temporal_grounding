@@ -15,7 +15,7 @@
     "batch_size": 64,
 
     "input_video_dim": 500,
-    "max_frames": 100,
+    "max_frames": 200,
     "input_ques_dim": 300,
     "max_words": 20,
     "hidden_size": 256,

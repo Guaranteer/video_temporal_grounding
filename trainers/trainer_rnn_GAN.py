@@ -107,7 +107,7 @@ class Trainer(object):
             t_begin = time.time()
             avg_batch_loss = self.train_one_epoch(i_epoch, self.pn_train_proc, self.model.pn_loss)
             t_end = time.time()
-            print('PN Pretrain Epoch %d ends. Average loss %.3f. %.3f seconds/epoch' % (
+            print('Epoch %d of PN ends. Average loss %.3f. %.3f seconds/epoch' % (
                 i_epoch, avg_batch_loss, t_end - t_begin))
 
 

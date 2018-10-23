@@ -108,7 +108,8 @@ class Model(object):
             ground_v_feature = tf.reduce_sum(tf.multiply(model_outputs, tf.expand_dims(ground_prod, 2)), 1)
             ground_out = self.discriminator(ground_v_feature, self.q_feature)
 
-            generated_prod = tf.nn.sigmoid(logit_score)/tf.reduce_sum(tf.nn.sigmoid(logit_score),keepdims=True,axis=1)
+            sig_score = tf.nn.sigmoid(logit_score)
+            generated_prod = sig_score
             generated_v_feature = tf.reduce_sum(tf.multiply(model_outputs, tf.expand_dims(generated_prod, 2)), 1)
             generated_out = self.discriminator(generated_v_feature, self.q_feature, reuse_flag=True)
 
