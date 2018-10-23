@@ -264,7 +264,7 @@ class Trainer(object):
         print('pn:',avg_pn_correct_num_topn_IoU, all_pn_iou/ all_retrievd)
         print('=================================')
 
-        acc = avg_pn_correct_num_topn_IoU[0,2]
+        acc = all_pn_iou/all_retrievd
         return acc
 
 

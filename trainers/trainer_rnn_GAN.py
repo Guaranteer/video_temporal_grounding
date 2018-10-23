@@ -24,13 +24,11 @@ class Trainer(object):
         self.test_loader = Loader(params, params['test_data'], self.word2vec)
 
 
-
-
         # pre-train initialization
         pre_global_step = tf.get_variable('pre_global_step', [], initializer=tf.constant_initializer(0), trainable=False)
         pre_learning_rates = tf.train.exponential_decay(self.params['learning_rate'], pre_global_step, decay_steps=self.params['lr_decay_n_iters'], decay_rate=self.params['lr_decay_rate'], staircase=True)
         pre_optimizer = tf.train.AdamOptimizer(pre_learning_rates)
-        self.pre_train_proc = pre_optimizer.minimize(self.model.G_pre_loss, global_step=pre_global_step)
+        self.pre_train_proc = pre_optimizer.minimize(self.model.G_pre_loss, global_step=pre_global_step, var_list=self.model.G_variables)
 
         # generator initialization
         self.g_train_proc = pre_optimizer.minimize(self.model.G_loss,global_step=pre_global_step,var_list=self.model.G_variables)
@@ -86,17 +84,11 @@ class Trainer(object):
             t_end = time.time()
             print('G Pretrain Epoch %d ends. Average loss %.3f. %.3f seconds/epoch' % (i_epoch, avg_batch_loss, t_end - t_begin))
 
-            if i_epoch %2 == 0:
-                print('=================================')
-                print('valid set evaluation')
-                valid_acc = self.evaluate(self.val_loader)
-                print('=================================')
+            print('=================================')
+            print('valid set evaluation')
+            valid_acc = self.evaluate(self.val_loader)
+            print('=================================')
 
-        t_begin = time.time()
-        avg_batch_loss = self.train_one_epoch(0, self.pn_train_proc, self.model.pn_loss)
-        t_end = time.time()
-        print('PN Pretrain Epoch %d ends. Average loss %.3f. %.3f seconds/epoch' % (
-                                                        0, avg_batch_loss, t_end - t_begin))
 
         # D_pretrain
         for i_epoch in range(self.params['g_pretrain_epoch']):
@@ -112,12 +104,11 @@ class Trainer(object):
             t_end = time.time()
             print('Epoch %d of G ends. Average loss %.3f. %.3f seconds/epoch' % (i_epoch, avg_batch_loss, t_end - t_begin))
 
-            if i_epoch % 2 == 0:
-                t_begin = time.time()
-                avg_batch_loss = self.train_one_epoch(i_epoch, self.pn_train_proc, self.model.pn_loss)
-                t_end = time.time()
-                print('PN Pretrain Epoch %d ends. Average loss %.3f. %.3f seconds/epoch' % (
-                    i_epoch, avg_batch_loss, t_end - t_begin))
+            t_begin = time.time()
+            avg_batch_loss = self.train_one_epoch(i_epoch, self.pn_train_proc, self.model.pn_loss)
+            t_end = time.time()
+            print('PN Pretrain Epoch %d ends. Average loss %.3f. %.3f seconds/epoch' % (
+                i_epoch, avg_batch_loss, t_end - t_begin))
 
 
             t_begin = time.time()
@@ -161,7 +152,7 @@ class Trainer(object):
         if self.last_checkpoint is not None:
             self.model_saver.restore(self.sess, self.last_checkpoint)
             self.evaluate(self.test_loader)
-            for i in range(3):
+            for i in range(5):
                 t_begin = time.time()
                 avg_batch_loss = self.train_one_epoch(i, self.pn_train_proc, self.model.pn_loss)
                 t_end = time.time()
@@ -210,9 +201,8 @@ class Trainer(object):
 
             if i_batch % self.params['display_batch_interval'] == 0:
                 t2 = time.time()
-                print('Epoch %d, Batch %d, G_loss = %.4f, %.3f seconds/batch' % ( i_epoch, i_batch, display_loss_sum/self.params['display_batch_interval'] ,
-                    (t2 - t1) / self.params['display_batch_interval']))
-                print('Pure loss:', pure_loss_sum/self.params['display_batch_interval'])
+                print('Epoch %d, Batch %d, loss = %.4f, pure_loss=%.4f, %.3f seconds/batch' % ( i_epoch, i_batch, display_loss_sum/self.params['display_batch_interval'] ,
+                                                    pure_loss_sum / self.params['display_batch_interval'], (t2 - t1) / self.params['display_batch_interval']))
                 display_loss_sum = 0
                 pure_loss_sum = 0
                 t1 = t2
@@ -298,8 +288,9 @@ class Trainer(object):
         print('pn:',avg_pn_correct_num_topn_IoU, all_pn_iou/ all_retrievd)
         print('=================================')
 
-        acc = avg_correct_num_topn_IoU[0,2]
+        acc = all_pn_iou/all_retrievd
         return acc
+
 
     def calculate_IoU(self, i0, i1):
         union = (min(i0[0], i1[0]), max(i0[1], i1[1]))

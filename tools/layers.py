@@ -120,6 +120,22 @@ def matrix_attention_layer(input_ts, context_ts, att_dim, scope_name, weights_on
             attention_output = tf.reduce_sum(tf.multiply(input_ts, tf.expand_dims(attention_score, 2)), 1)
             return attention_output, attention_score
 
+def correlation_layer(input_ts, context_ts, att_dim, scope_name):
+    step = int(input_ts.shape[1]) # time_step, L
+    input_dim = int(input_ts.shape[2]) # video_dims, k
+    context_dim = int(context_ts.shape[1]) # question_dims, c
+
+    with tf.variable_scope(scope_name):
+        tiled_context = tf.tile(tf.expand_dims(context_ts, 1), tf.stack([1, step, 1]))
+        w_c = tf.get_variable('w_c', shape=[context_dim, att_dim], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
+        w_i = tf.get_variable('w_i', shape=[input_dim, att_dim], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
+        b_i = tf.get_variable('b_i', shape=[att_dim], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
+        attention_input = tf.tanh(tensor_matmul(input_ts, w_i) + tensor_matmul(tiled_context, w_c) + b_i)
+        w_a = tf.get_variable('w_a', shape=[att_dim, 1], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
+        attention_score = tf.squeeze(tensor_matmul(attention_input, w_a), axis=[2])
+
+        return attention_score
+
 
 def bilinear_attention_layer(input_ts, context_ts, scope_name):
     step = int(input_ts.shape[1]) # time_step, L

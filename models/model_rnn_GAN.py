@@ -104,11 +104,11 @@ class Model(object):
             G_regularization_cost = tf.reduce_sum([tf.nn.l2_loss(v) for v in self.G_variables])
             G_reg_loss = self.regularization_beta * G_regularization_cost
 
-            ground_prod = tf.nn.softmax(self.gt_predict)
+            ground_prod = self.gt_predict/tf.reduce_sum(self.gt_predict,keepdims=True,axis=1)
             ground_v_feature = tf.reduce_sum(tf.multiply(model_outputs, tf.expand_dims(ground_prod, 2)), 1)
             ground_out = self.discriminator(ground_v_feature, self.q_feature)
 
-            generated_prod = tf.nn.softmax(logit_score)
+            generated_prod = tf.nn.sigmoid(logit_score)/tf.reduce_sum(tf.nn.sigmoid(logit_score),keepdims=True,axis=1)
             generated_v_feature = tf.reduce_sum(tf.multiply(model_outputs, tf.expand_dims(generated_prod, 2)), 1)
             generated_out = self.discriminator(generated_v_feature, self.q_feature, reuse_flag=True)
 
@@ -137,10 +137,13 @@ class Model(object):
 
 
         with tf.variable_scope('Pointer_Layer'):
-            score_dist = tf.nn.softmax(logit_score)
+            score_dist = tf.nn.sigmoid(logit_score)
             output = tf.nn.relu(conv_utils.conv1d_with_bias(tf.expand_dims(score_dist,2),1,16,5))
+            output = tf.contrib.layers.dropout(output, self.dropout, is_training=self.is_training)
             output = tf.nn.relu(conv_utils.conv1d_with_bias(output,2,32,10))
+            output = tf.contrib.layers.dropout(output, self.dropout, is_training=self.is_training)
             output = tf.nn.relu(conv_utils.conv1d_with_bias(output, 3, 64, 20))
+            output = tf.contrib.layers.dropout(output, self.dropout, is_training=self.is_training)
             output = tf.nn.relu(conv_utils.conv1d_with_bias(output,4,1,10))
             # output = tf.contrib.layers.dropout(output, self.dropout, is_training=self.is_training)
             # output = tf.nn.relu(layers.linear_layer(output, self.hidden_size,scope_name='pointer_1'))
