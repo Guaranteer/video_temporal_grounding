@@ -90,7 +90,7 @@ class Trainer(object):
             print('Epoch %d ends. Average loss %.3f. %.3f seconds/epoch' % (i_epoch, avg_batch_loss, t_end - t_begin))
 
             t_begin = time.time()
-            avg_batch_loss = self.train_one_epoch(i_epoch, self.pn_train_proc, self.model.pn_loss, post_train=True)
+            avg_batch_loss = self.train_one_epoch(i_epoch, self.pn_train_proc, self.model.pn_loss, post_train=False)
             t_end = time.time()
             print('Epoch %d ends. Average loss %.3f. %.3f seconds/epoch' % (i_epoch, avg_batch_loss, t_end - t_begin))
 
@@ -133,7 +133,7 @@ class Trainer(object):
 
             for i in range(5):
                 t_begin = time.time()
-                avg_batch_loss = self.train_one_epoch(i, self.pn_train_proc, self.model.pn_loss, post_train=True)
+                avg_batch_loss = self.train_one_epoch(i, self.pn_train_proc, self.model.pn_loss, post_train=False)
                 t_end = time.time()
                 print('Post Epoch %d ends. Average loss %.3f. %.3f seconds/epoch' % (i, avg_batch_loss, t_end - t_begin))
 
