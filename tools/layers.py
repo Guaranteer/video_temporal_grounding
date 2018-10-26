@@ -31,6 +31,10 @@ def mask_logits(inputs, mask, mask_value = -1e30):
     mask = tf.cast(mask, tf.float32)
     return inputs + mask_value * (1 - mask)
 
+def mask_zero(inputs, mask):
+    mask = tf.cast(mask, tf.float32)
+    return inputs*mask
+
 def linear_layer(input_ts, output_dim, scope_name):
     with tf.variable_scope(scope_name):
         w = tf.get_variable('w', shape=[input_ts.shape[1], output_dim], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
@@ -136,6 +140,48 @@ def correlation_layer(input_ts, context_ts, att_dim, scope_name):
 
         return attention_score
 
+def weight_attention_layer(input_ts, att_dim, len_mask,scope_name):
+    step = int(input_ts.shape[1]) # time_step, L
+    input_dim = int(input_ts.shape[2]) # video_dims, k
+    context_dim = att_dim # question_dims, c
+
+    with tf.variable_scope(scope_name):
+        context_ts = tf.get_variable('context_ts', shape=[context_dim], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
+
+        tiled_context = tf.expand_dims(context_ts,0)
+        w_c = tf.get_variable('w_c', shape=[context_dim, att_dim], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
+        w_i = tf.get_variable('w_i', shape=[input_dim, att_dim], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
+        b_i = tf.get_variable('b_i', shape=[att_dim], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
+        attention_input = tf.tanh(tensor_matmul(input_ts, w_i) + tf.squeeze(tf.matmul(tiled_context, w_c),0) + b_i)
+        w_a = tf.get_variable('w_a', shape=[att_dim, 1], dtype=tf.float32, initializer=tf.contrib.layers.xavier_initializer())
+
+        attention_logit = mask_logits(tf.squeeze(tensor_matmul(attention_input, w_a), axis=[2]), len_mask)
+        attention_score = tf.nn.softmax(attention_logit)
+        attention_output = tf.reduce_sum(tf.multiply(input_ts, tf.expand_dims(attention_score, 2)), 1)
+        return attention_output, attention_score
+
+def fusion_layer(origin_ts, attend_ts, att_dim, scope_name):
+    step = int(origin_ts.shape[1]) # time_step, L
+    input_dim = int(origin_ts.shape[2])
+    attend_dim = int(origin_ts.shape[2])
+    with tf.variable_scope(scope_name):
+        fused_ts = tf.concat([origin_ts, attend_ts, origin_ts*attend_ts, origin_ts-attend_ts],2)
+        w_c = tf.get_variable('w_c', shape=[input_dim*4, att_dim], dtype=tf.float32,
+                              initializer=tf.contrib.layers.xavier_initializer())
+        b_c = tf.get_variable('b_c', shape=[att_dim], dtype=tf.float32,
+                              initializer=tf.contrib.layers.xavier_initializer())
+        fused_input = tf.tanh(tensor_matmul(fused_ts, w_c) + b_c)
+
+        w_i = tf.get_variable('w_i', shape=[input_dim*4, att_dim], dtype=tf.float32,
+                              initializer=tf.contrib.layers.xavier_initializer())
+        b_i = tf.get_variable('b_i', shape=[att_dim], dtype=tf.float32,
+                              initializer=tf.contrib.layers.xavier_initializer())
+        w_a = tf.get_variable('w_a', shape=[att_dim, 1], dtype=tf.float32,
+                              initializer=tf.contrib.layers.xavier_initializer())
+        gate = tf.nn.sigmoid(tensor_matmul(tensor_matmul(fused_ts,w_i)+b_i, w_a))
+
+        fused_output = gate*fused_input +(1-gate)*origin_ts
+        return fused_output
 
 def bilinear_attention_layer(input_ts, context_ts, scope_name):
     step = int(input_ts.shape[1]) # time_step, L
