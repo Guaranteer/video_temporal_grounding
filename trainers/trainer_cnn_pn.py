@@ -2,7 +2,7 @@ import sys
 sys.path.append('..')
 import json
 from dataloaders.dataloader_rnn import Loader
-from models.model_cnn_last import Model
+from models.model_cnn_pn import Model
 import time
 from gensim.models import KeyedVectors
 import os

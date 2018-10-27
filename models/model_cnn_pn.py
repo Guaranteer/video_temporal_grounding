@@ -158,7 +158,9 @@ class Model(object):
 
         with tf.variable_scope("Output_Layer"):
 
-            logit_score = layers.correlation_layer(model_outputs,self.q_feature,self.hidden_size,scope_name='output_layer')
+            # logit_score = layers.correlation_layer(model_outputs,self.q_feature,self.hidden_size,scope_name='output_layer')
+            logit_score = layers.linear_layer_3d(model_outputs, 1, scope_name='output_layer')
+            logit_score = tf.squeeze(logit_score, 2)
 
             logit_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits= logit_score, labels=self.gt_predict)
             avg_logit_loss = tf.reduce_mean(tf.reduce_sum(logit_loss,1))
