@@ -14,7 +14,7 @@
 
     "batch_size": 64,
 
-    "input_video_dim": 4096,
+    "input_video_dim": 500,
     "max_frames": 300,
     "input_ques_dim": 300,
     "max_words": 20,
@@ -36,7 +36,7 @@
     "train_data": "../data/TACOS/TACOS_train.json",
     "val_data": "../data/TACOS/TACOS_val.json",
     "test_data": "../data/TACOS/TACOS_test.json",
-    "feature_path":"/home1/zhangzhu/data/tacos/c3d/features_sports1M",
+    "feature_path":"/home1/zhangzhu/data/tacos/c3d/pca",
     "feature_path_tsn":"/home1/zhangzhu/data/tsn_score"
 
 

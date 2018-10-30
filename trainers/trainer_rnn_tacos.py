@@ -2,7 +2,7 @@ import sys
 sys.path.append('..')
 import json
 from dataloaders.dataloader_TACOS import Loader
-from models.model_cnn_pn import Model
+from models.model_cnn_last import Model
 import time
 from gensim.models import KeyedVectors
 import os
@@ -272,8 +272,9 @@ class Trainer(object):
 
 
     def calculate_IoU(self, i0, i1):
-        if i1[1] == i1[0]:
-            i1[1] += 0.01
+        if i0[0] == i0[1]:
+            i0[0] -= 0.5
+            i0[1] += 0.5
         union = (min(i0[0], i1[0]), max(i0[1], i1[1]))
         inter = (max(i0[0], i1[0]), min(i0[1], i1[1]))
         iou = 1.0 * (inter[1] - inter[0]) / (union[1] - union[0])
