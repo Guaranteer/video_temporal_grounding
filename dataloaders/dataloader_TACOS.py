@@ -7,6 +7,7 @@ import os
 import nltk
 import h5py
 import random
+import math
 from gensim.models import KeyedVectors
 
 def load_file(filename):
@@ -108,8 +109,10 @@ class Loader(object):
                 frame_n[i] = self.max_frames
 
                 frame_per_sec = self.max_frames/duration
-                start_frame = round(frame_per_sec * timestamps[0])
-                end_frame = round(frame_per_sec * timestamps[1]) - 1
+                start_frame = math.floor(frame_per_sec * timestamps[0])
+                end_frame = math.ceil(frame_per_sec * timestamps[1])
+                if start_frame == end_frame:
+                    end_frame += 1
                 gt_windows[i,:] = [start_frame, end_frame]
 
                 for j in range(self.max_frames):
