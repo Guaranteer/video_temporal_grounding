@@ -99,9 +99,9 @@ class Trainer(object):
                 print('=================================')
                 print('Overall evaluation')
                 print('=================================')
-                print('train set evaluation')
-                train_acc = self.evaluate(self.train_loader)
-                print('=================================')
+                # print('train set evaluation')
+                # train_acc = self.evaluate(self.train_loader)
+                # print('=================================')
                 print('valid set evaluation')
                 valid_acc = self.evaluate(self.val_loader)
                 print('=================================')
@@ -235,15 +235,18 @@ class Trainer(object):
                 predict_score, predict_windows = self.propose_field(frame_score, batch_size, i_batch, i, gt_windows)
                 propose_result = self.calculate_IoU(predict_windows[0], gt_windows[i])
                 all_iou += propose_result
-                for i in range(len(IoU_thresh)):
-                    if propose_result >= IoU_thresh[i]:
-                        all_correct_num_topn_IoU[0][i] += 1.0
+                for j in range(len(IoU_thresh)):
+                    if propose_result >= IoU_thresh[j]:
+                        all_correct_num_topn_IoU[0][j] += 1.0
 
                 pn_result = self.calculate_IoU(predict_start_end[i], gt_windows[i])
                 all_pn_iou += pn_result
-                for i in range(len(IoU_thresh)):
-                    if pn_result >= IoU_thresh[i]:
-                        all_pn_correct_num_topn_IoU[0][i] += 1.0
+                for j in range(len(IoU_thresh)):
+                    if pn_result >= IoU_thresh[j]:
+                        all_pn_correct_num_topn_IoU[0][j] += 1.0
+
+                if i_batch % 20 == 0 and i %10 == 0:
+                    print(gt_windows[i], predict_windows[0], predict_start_end[i])
 
 
             all_retrievd += batch_size
@@ -252,7 +255,7 @@ class Trainer(object):
             pn_loss_sum += pn_loss
 
 
-            if i_batch % 100 == 0:
+            if i_batch % 20 == 0:
                 print('Batch %d, loss = %.4f, pn_loss = %.4f' % (i_batch, loss_sum / i_batch, pn_loss_sum/ i_batch))
 
 
@@ -269,17 +272,21 @@ class Trainer(object):
 
 
     def calculate_IoU(self, i0, i1):
+        if i1[1] == i1[0]:
+            i1[1] += 0.01
         union = (min(i0[0], i1[0]), max(i0[1], i1[1]))
         inter = (max(i0[0], i1[0]), min(i0[1], i1[1]))
         iou = 1.0 * (inter[1] - inter[0]) / (union[1] - union[0])
+        if iou < 0:
+            iou = 0
         return iou
 
     def propose_field(self, frame_score, batch_size, i_batch, i, gt_windows):
 
         frame_pred = frame_score[i]
-        frame_pred = (frame_pred - np.mean(frame_pred)) / np.std(frame_pred)
-        scale = max(max(frame_pred), -min(frame_pred)) / 0.5
-        frame_pred = frame_pred / (scale + 1e-3) + 0.5
+        # frame_pred = (frame_pred - np.mean(frame_pred)) / np.std(frame_pred)
+        # scale = max(max(frame_pred), -min(frame_pred)) / 0.5
+        # frame_pred = frame_pred / (scale + 1e-3) + 0.5
         frame_pred_in = np.log(frame_pred)
         frame_pred_out = np.log(1 - frame_pred)
         candidate_num = 1

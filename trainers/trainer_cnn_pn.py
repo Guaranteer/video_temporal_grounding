@@ -237,15 +237,15 @@ class Trainer(object):
                 predict_score, predict_windows = self.propose_field(frame_score, batch_size, i_batch, i, gt_windows)
                 propose_result = self.calculate_IoU(predict_windows[0], gt_windows[i])
                 all_iou += propose_result
-                for i in range(len(IoU_thresh)):
-                    if propose_result >= IoU_thresh[i]:
-                        all_correct_num_topn_IoU[0][i] += 1.0
+                for j in range(len(IoU_thresh)):
+                    if propose_result >= IoU_thresh[j]:
+                        all_correct_num_topn_IoU[0][j] += 1.0
 
                 pn_result = self.calculate_IoU(predict_start_end[i], gt_windows[i])
                 all_pn_iou += pn_result
-                for i in range(len(IoU_thresh)):
-                    if pn_result >= IoU_thresh[i]:
-                        all_pn_correct_num_topn_IoU[0][i] += 1.0
+                for j in range(len(IoU_thresh)):
+                    if pn_result >= IoU_thresh[j]:
+                        all_pn_correct_num_topn_IoU[0][j] += 1.0
 
 
             all_retrievd += batch_size
