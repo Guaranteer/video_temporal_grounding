@@ -274,6 +274,8 @@ class Trainer(object):
         union = (min(i0[0], i1[0]), max(i0[1], i1[1]))
         inter = (max(i0[0], i1[0]), min(i0[1], i1[1]))
         iou = 1.0 * (inter[1] - inter[0]) / (union[1] - union[0])
+        if iou < 0:
+            iou = 0
         return iou
 
     def propose_field(self, frame_score, batch_size, i_batch, i, gt_windows):
