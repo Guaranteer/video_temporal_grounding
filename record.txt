@@ -135,3 +135,10 @@ propose: [[0.64130116 0.5053726  0.36169338 0.2005167 ]] 0.35458094845735116
 
 activity cnn 半调整
 propose: [[0.78374726 0.6026657  0.41248313 0.21043979]] 0.4142460960782329
+
+cnn
+test time : 0.931s/batch(64实例)
+train time : 0.278s/batch(64实例)
+rnn
+test time : 1.38s/batch(64实例)
+train time : 1.25s/batch(64实例)

@@ -148,8 +148,8 @@ class Trainer(object):
 
         loss_sum = 0
         display_loss_sum = 0
-        t1 = time.time()
         i_batch = 0
+        all_time = 0
 
         self.train_loader.reset()
         for frame_vecs, frame_n, ques_vecs, ques_n, labels, gt_windows in self.train_loader.generate():
@@ -167,6 +167,7 @@ class Trainer(object):
             batch_data[self.model.is_training] = True
             batch_data[self.model.batch_size] = len(frame_vecs)
 
+            t1 = time.time()
             # Forward pass
             if post_train == False:
                 _, batch_loss = self.sess.run(
@@ -176,17 +177,18 @@ class Trainer(object):
             else:
                 _, _, batch_loss = self.sess.run(
                                             [self.post_train_proc,train_proc, loss], feed_dict=batch_data)
+            t2 = time.time()
+            all_time += (t2-t1)
 
             i_batch += 1
             loss_sum += batch_loss
             display_loss_sum += batch_loss
 
             if i_batch % self.params['display_batch_interval'] == 0:
-                t2 = time.time()
                 print('Epoch %d, Batch %d, loss = %.4f, %.3f seconds/batch' % ( i_epoch, i_batch, display_loss_sum / self.params['display_batch_interval'] ,
-                    (t2 - t1) / self.params['display_batch_interval']))
+                    all_time/ self.params['display_batch_interval']))
                 display_loss_sum = 0
-                t1 = t2
+                all_time = 0
 
         avg_batch_loss = loss_sum / i_batch
 
@@ -207,6 +209,8 @@ class Trainer(object):
         i_batch = 0
         loss_sum = 0
         pn_loss_sum = 0
+        t1 = time.time()
+        pred_time = 0
 
         for frame_vecs, frame_n, ques_vecs, ques_n, labels, gt_windows in data_loader.generate():
 
@@ -224,6 +228,7 @@ class Trainer(object):
             batch_data[self.model.is_training] = False
             batch_data[self.model.batch_size] = batch_size
 
+            pred_t1 = time.time()
             # Forward pass
             batch_loss, pn_loss, frame_score, predict_start_end  = self.sess.run(
                                         [self.model.test_loss, self.model.pn_loss, self.model.frame_score, self.model.predict_start_end], feed_dict=batch_data)
@@ -231,6 +236,11 @@ class Trainer(object):
 
 
             for i in range(batch_size):
+                pn_result = self.calculate_IoU(predict_start_end[i], gt_windows[i])
+                all_pn_iou += pn_result
+                for j in range(len(IoU_thresh)):
+                    if pn_result >= IoU_thresh[j]:
+                        all_pn_correct_num_topn_IoU[0][j] += 1.0
 
                 predict_score, predict_windows = self.propose_field(frame_score, batch_size, i_batch, i, gt_windows)
                 propose_result = self.calculate_IoU(predict_windows[0], gt_windows[i])
@@ -239,22 +249,21 @@ class Trainer(object):
                     if propose_result >= IoU_thresh[j]:
                         all_correct_num_topn_IoU[0][j] += 1.0
 
-                pn_result = self.calculate_IoU(predict_start_end[i], gt_windows[i])
-                all_pn_iou += pn_result
-                for j in range(len(IoU_thresh)):
-                    if pn_result >= IoU_thresh[j]:
-                        all_pn_correct_num_topn_IoU[0][j] += 1.0
 
 
             all_retrievd += batch_size
             i_batch += 1
             loss_sum += batch_loss
             pn_loss_sum += pn_loss
+            pred_t2 = time.time()
+            pred_time += (pred_t2 - pred_t1)
 
 
             if i_batch % 100 == 0:
-                print('Batch %d, loss = %.4f, pn_loss = %.4f' % (i_batch, loss_sum / i_batch, pn_loss_sum/ i_batch))
-
+                t2 = time.time()
+                print('Batch %d, loss = %.4f, pn_loss = %.4f, %.3f seconds/batch, %.3f pred seconds/batch, ' % (i_batch, loss_sum / i_batch, pn_loss_sum/ i_batch, (t2 - t1)/100, pred_time/100))
+                t1 = time.time()
+                pred_time = 0
 
         avg_correct_num_topn_IoU = all_correct_num_topn_IoU / all_retrievd
         avg_pn_correct_num_topn_IoU = all_pn_correct_num_topn_IoU / all_retrievd
