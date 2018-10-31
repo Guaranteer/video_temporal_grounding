@@ -280,6 +280,8 @@ class Trainer(object):
     def calculate_IoU(self, i0, i1):
         union = (min(i0[0], i1[0]), max(i0[1], i1[1]))
         inter = (max(i0[0], i1[0]), min(i0[1], i1[1]))
+        if union[1] - union[0] < 1e-5:
+            return 0
         iou = 1.0 * (inter[1] - inter[0]) / (union[1] - union[0])
         if iou < 0:
             iou = 0
@@ -288,9 +290,9 @@ class Trainer(object):
     def propose_field(self, frame_score, batch_size, i_batch, i, gt_windows):
 
         frame_pred = frame_score[i]
-        frame_pred = (frame_pred - np.mean(frame_pred)) / np.std(frame_pred)
-        scale = max(max(frame_pred), -min(frame_pred)) / 0.5
-        frame_pred = frame_pred / (scale + 1e-3) + 0.5
+        # frame_pred = (frame_pred - np.mean(frame_pred)) / np.std(frame_pred)
+        # scale = max(max(frame_pred), -min(frame_pred)) / 0.5
+        # frame_pred = frame_pred / (scale + 1e-3) + 0.5
         frame_pred_in = np.log(frame_pred)
         frame_pred_out = np.log(1 - frame_pred)
         candidate_num = 1
