@@ -2,7 +2,7 @@ import sys
 sys.path.append('..')
 import json
 from dataloaders.dataloader_TACOS import Loader
-from models.model_cnn_last import Model
+from models.model_cnn_pn import Model
 import time
 from gensim.models import KeyedVectors
 import os
@@ -207,6 +207,8 @@ class Trainer(object):
         i_batch = 0
         loss_sum = 0
         pn_loss_sum = 0
+        t1 = time.time()
+        pred_time = 0
 
         for frame_vecs, frame_n, ques_vecs, ques_n, labels, gt_windows in data_loader.generate():
 
@@ -232,20 +234,24 @@ class Trainer(object):
 
             for i in range(batch_size):
 
-                predict_score, predict_windows = self.propose_field(frame_score, batch_size, i_batch, i, gt_windows)
-                propose_result = self.calculate_IoU(predict_windows[0], gt_windows[i])
-                all_iou += propose_result
-                for j in range(len(IoU_thresh)):
-                    if propose_result >= IoU_thresh[j]:
-                        all_correct_num_topn_IoU[0][j] += 1.0
-
                 pn_result = self.calculate_IoU(predict_start_end[i], gt_windows[i])
                 all_pn_iou += pn_result
                 for j in range(len(IoU_thresh)):
                     if pn_result >= IoU_thresh[j]:
                         all_pn_correct_num_topn_IoU[0][j] += 1.0
 
-                if i_batch % 20 == 0 and i %10 == 0:
+                pred_t1 = time.time()
+                predict_score, predict_windows = self.propose_field(frame_score, batch_size, i_batch, i, gt_windows)
+                propose_result = self.calculate_IoU(predict_windows[0], gt_windows[i])
+                pred_t2= time.time()
+                pred_time += pred_t2 - pred_t1
+                all_iou += propose_result
+                for j in range(len(IoU_thresh)):
+                    if propose_result >= IoU_thresh[j]:
+                        all_correct_num_topn_IoU[0][j] += 1.0
+
+
+                if i_batch % 40 == 0 and i %10 == 0:
                     print(gt_windows[i], predict_windows[0], predict_start_end[i])
 
 
@@ -255,8 +261,11 @@ class Trainer(object):
             pn_loss_sum += pn_loss
 
 
-            if i_batch % 20 == 0:
-                print('Batch %d, loss = %.4f, pn_loss = %.4f' % (i_batch, loss_sum / i_batch, pn_loss_sum/ i_batch))
+            if i_batch % 40 == 0:
+                t2 = time.time()
+                print('Batch %d, loss = %.4f, pn_loss = %.4f, %.3f seconds/batch, %.3f pred seconds/batch, ' % (i_batch, loss_sum / i_batch, pn_loss_sum/ i_batch, (t2 - t1)/40, pred_time/40))
+                t1 = time.time()
+                pred_time = 0
 
 
         avg_correct_num_topn_IoU = all_correct_num_topn_IoU / all_retrievd
@@ -336,7 +345,7 @@ class Trainer(object):
 
 if __name__ == '__main__':
 
-    config_file = '../configs/config_rnn_tacos.json'
+    config_file = '../configs/config_cnn_tacos.json'
 
     with open(config_file, 'r') as fr:
         config = json.load(fr)

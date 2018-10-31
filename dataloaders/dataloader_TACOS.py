@@ -80,11 +80,11 @@ class Loader(object):
 
                 # video
                 if self.params['is_origin_dataset']:
-                    if not os.path.exists(self.feature_path + '/%s.npy' % vid):
-                        print(self.feature_path + '/%s.npy' % vid)
-                        print('the video is not exist:', vid)
+                    if not os.path.exists(self.feature_path + '/%s.npy' % vid[:-4]):
+                        print(self.feature_path + '/%s.npy' % vid[:-4])
+                        print('the video is not exist:', vid[:-4])
                         continue
-                    feats = np.load(self.feature_path + '/%s.npy' % vid)
+                    feats = np.load(self.feature_path + '/%s.npy' % vid[:-4])
                 else:
                     vid = vid[2:]
                     while not os.path.exists(self.feature_path_tsn + '/feat/%s.h5' % vid):
