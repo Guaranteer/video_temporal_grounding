@@ -37,6 +37,9 @@ class Model(object):
         self.is_training = tf.placeholder(tf.bool)
         self.gt_predict = tf.placeholder(tf.float32, [None, self.max_frames])
         self.gt_windows = tf.placeholder(tf.float32, [None, 2])
+        self.gt_start = tf.placeholder(tf.float32, [None, self.max_frames])
+        self.gt_end = tf.placeholder(tf.float32, [None, self.max_frames])
+
 
         self.frame_mask = tf.sequence_mask(self.frame_len, maxlen=self.max_frames)
         self.ques_mask = tf.sequence_mask(self.ques_len, maxlen=self.max_words)
@@ -102,7 +105,6 @@ class Model(object):
         with tf.variable_scope("Output_Layer"):
 
 
-            # logit_score = layers.correlation_layer(model_outputs,self.q_feature,self.hidden_size,scope_name='output_layer')
 
             logit_score = layers.linear_layer_3d(model_outputs, 1, scope_name='output_layer')
             logit_score = tf.squeeze(logit_score, 2)
@@ -118,63 +120,27 @@ class Model(object):
 
 
         with tf.variable_scope('Pointer_Layer'):
-            score_dist = tf.nn.sigmoid(logit_score)
-            score_dist = conv_utils.normalize(score_dist,scope='layer_normal')
+            score_dist = layers.linear_layer_3d(model_outputs, 2, scope_name='pointer_layer')
+            predict_start = score_dist[:,:,0]
+            predict_end = score_dist[:,:,1]
 
-            output = tf.nn.relu(conv_utils.conv1d_with_bias(tf.expand_dims(score_dist,2),1,16,5))
-            # output = tf.contrib.layers.dropout(output, self.dropout, is_training=self.is_training)
-            output = tf.nn.relu(conv_utils.conv1d_with_bias(output,2,32,10))
-            # output = tf.contrib.layers.dropout(output, self.dropout, is_training=self.is_training)
-            output = tf.nn.relu(conv_utils.conv1d_with_bias(output, 3, 64, 20))
-            # output = tf.contrib.layers.dropout(output, self.dropout, is_training=self.is_training)
-            output = tf.nn.relu(conv_utils.conv1d_with_bias(output,4,1,10))
-            # output = tf.contrib.layers.dropout(output, self.dropout, is_training=self.is_training)
-            # output = tf.nn.relu(layers.linear_layer(output, self.hidden_size,scope_name='pointer_1'))
-            # output = tf.nn.relu(layers.linear_layer(output, self.hidden_size/2,scope_name='pointer_2'))
-            # output = tf.nn.relu(layers.linear_layer(output, self.hidden_size/4,scope_name='pointer_3'))
-            output = layers.linear_layer(tf.squeeze(output,2), 2, scope_name='pointrt_output')
-            self.predict_start_end = output
-            gt_start_end = self.gt_windows
-            pointer_loss = tf.reduce_mean(tf.square(tf.subtract(self.predict_start_end, gt_start_end)))
+            start_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.gt_start,logits=predict_start)
+            end_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.gt_end,logits=predict_end)
+            pointer_loss = tf.reduce_mean(start_loss+end_loss)
+
+
 
             all_variable = tf.trainable_variables()
-            # self.pn_variables = all_variable
-            self.pn_variables = [vv for vv in all_variable if vv not in self.G_variables]
+            self.pn_variables = all_variable
+            # self.pn_variables = [vv for vv in all_variable if vv not in self.G_variables]
             pn_regularization_cost = tf.reduce_sum([tf.nn.l2_loss(v) for v in self.pn_variables])
             self.pn_loss = pointer_loss + self.regularization_beta * pn_regularization_cost
+            self.start_and_end = score_dist
 
 
 
 
 
-        # with tf.variable_scope("Output_Layer"):
-        #     fused_outputs = tf.concat([attention_outputs,model_outputs],2)
-        #     logit_score = layers.correlation_layer(fused_outputs,self.q_feature,self.hidden_size,scope_name='output_layer')
-        #     gt_window = tf.cast(self.gt_windows, dtype=tf.int32)
-        #     gt_start = tf.one_hot(gt_window[:,0], self.max_frames)
-        #     logit_loss_start = tf.nn.softmax_cross_entropy_with_logits(logits=logit_score, labels=gt_start)
-        #
-        #     model_outputs_2, _ = layers.dynamic_origin_bilstm_layer(model_outputs, self.hidden_size, 'model_layer',
-        #                                                           input_len=self.frame_len)
-        #
-        #     model_outputs_2 = tf.contrib.layers.dropout(model_outputs_2, self.dropout, is_training=self.is_training)
-        #     fused_outputs_2 = tf.concat([attention_outputs, model_outputs_2], 2)
-        #     logit_score_2 = layers.correlation_layer(fused_outputs_2, self.q_feature, self.hidden_size,
-        #                                            scope_name='output_layer_2')
-        #     gt_end = tf.one_hot(gt_window[:,1], self.max_frames)
-        #     logit_loss_end= tf.nn.softmax_cross_entropy_with_logits(logits=logit_score_2, labels=gt_end)
-        #
-        #     avg_logit_loss = tf.reduce_mean(logit_loss_start+logit_loss_end)
-        #
-        #     self.G_variables = tf.trainable_variables()
-        #     G_regularization_cost = tf.reduce_sum([tf.nn.l2_loss(v) for v in self.G_variables])
-        #     self.test_loss = avg_logit_loss
-        #     self.loss = avg_logit_loss + self.regularization_beta * G_regularization_cost
-        #     pred_start = tf.argmax(logit_score,axis=1)
-        #     pred_end = tf.argmax(logit_score_2,axis=1)
-        #     self.predict_start_end = tf.stack([pred_start,pred_end],axis=1)
-        #
-        #     self.pn_loss = self.loss
 
 if __name__ == '__main__':
 

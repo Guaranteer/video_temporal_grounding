@@ -1,8 +1,8 @@
 import sys
 sys.path.append('..')
 import json
-from dataloaders.dataloader_rnn import Loader
-from models.model_rnn_pn import Model
+from dataloaders.dataloader_final import Loader
+from models.model_rnn_final import Model
 import time
 from gensim.models import KeyedVectors
 import os
@@ -84,15 +84,15 @@ class Trainer(object):
 
 
         for i_epoch in range(self.params['max_epoches']):
-            t_begin = time.time()
-            avg_batch_loss = self.train_one_epoch(i_epoch, self.train_proc, self.model.loss)
-            t_end = time.time()
-            print('Epoch %d ends. Average loss %.3f. %.3f seconds/epoch' % (i_epoch, avg_batch_loss, t_end - t_begin))
-
             # t_begin = time.time()
-            # avg_batch_loss = self.train_one_epoch(i_epoch, self.pn_train_proc, self.model.pn_loss, post_train=False)
+            # avg_batch_loss = self.train_one_epoch(i_epoch, self.train_proc, self.model.loss)
             # t_end = time.time()
             # print('Epoch %d ends. Average loss %.3f. %.3f seconds/epoch' % (i_epoch, avg_batch_loss, t_end - t_begin))
+
+            t_begin = time.time()
+            avg_batch_loss = self.train_one_epoch(i_epoch, self.pn_train_proc, self.model.pn_loss, post_train=False)
+            t_end = time.time()
+            print('Epoch %d ends. Average loss %.3f. %.3f seconds/epoch' % (i_epoch, avg_batch_loss, t_end - t_begin))
 
 
             if i_epoch % self.params['evaluate_interval'] == 0 and i_epoch != 0:
@@ -152,7 +152,7 @@ class Trainer(object):
         all_time = 0
 
         self.train_loader.reset()
-        for frame_vecs, frame_n, ques_vecs, ques_n, labels, gt_windows in self.train_loader.generate():
+        for frame_vecs, frame_n, ques_vecs, ques_n, labels, gt_windows, gt_start, gt_end in self.train_loader.generate():
 
             if frame_vecs is None:
                 break
@@ -164,6 +164,8 @@ class Trainer(object):
             batch_data[self.model.ques_len] = ques_n
             batch_data[self.model.gt_predict] = labels
             batch_data[self.model.gt_windows] = gt_windows
+            batch_data[self.model.gt_start] = gt_start
+            batch_data[self.model.gt_end] = gt_end
             batch_data[self.model.is_training] = True
             batch_data[self.model.batch_size] = len(frame_vecs)
 
@@ -212,7 +214,7 @@ class Trainer(object):
         t1 = time.time()
         pred_time = 0
 
-        for frame_vecs, frame_n, ques_vecs, ques_n, labels, gt_windows in data_loader.generate():
+        for frame_vecs, frame_n, ques_vecs, ques_n, labels, gt_windows, gt_start, gt_end in data_loader.generate():
 
             if frame_vecs is None:
                 break
@@ -225,29 +227,32 @@ class Trainer(object):
             batch_data[self.model.ques_len] = ques_n
             batch_data[self.model.gt_predict] = labels
             batch_data[self.model.gt_windows] = gt_windows
+            batch_data[self.model.gt_start] = gt_start
+            batch_data[self.model.gt_end] = gt_end
             batch_data[self.model.is_training] = False
             batch_data[self.model.batch_size] = batch_size
 
             pred_t1 = time.time()
             # Forward pass
             batch_loss, pn_loss, frame_score, predict_start_end  = self.sess.run(
-                                        [self.model.test_loss, self.model.pn_loss, self.model.frame_score, self.model.predict_start_end], feed_dict=batch_data)
+                                        [self.model.test_loss, self.model.pn_loss, self.model.frame_score, self.model.start_and_end], feed_dict=batch_data)
 
 
 
             for i in range(batch_size):
-                pn_result = self.calculate_IoU(predict_start_end[i], gt_windows[i])
+                pn_start_end = np.argmax(predict_start_end[i],0)
+                pn_result = self.calculate_IoU(pn_start_end, gt_windows[i])
                 all_pn_iou += pn_result
                 for j in range(len(IoU_thresh)):
                     if pn_result >= IoU_thresh[j]:
                         all_pn_correct_num_topn_IoU[0][j] += 1.0
 
-                predict_score, predict_windows = self.propose_field(frame_score, batch_size, i_batch, i, gt_windows)
-                propose_result = self.calculate_IoU(predict_windows[0], gt_windows[i])
-                all_iou += propose_result
-                for j in range(len(IoU_thresh)):
-                    if propose_result >= IoU_thresh[j]:
-                        all_correct_num_topn_IoU[0][j] += 1.0
+                # predict_score, predict_windows = self.propose_field(frame_score, batch_size, i_batch, i, gt_windows)
+                # propose_result = self.calculate_IoU(predict_windows[0], gt_windows[i])
+                # all_iou += propose_result
+                # for j in range(len(IoU_thresh)):
+                #     if propose_result >= IoU_thresh[j]:
+                #         all_correct_num_topn_IoU[0][j] += 1.0
 
 
 
@@ -273,11 +278,14 @@ class Trainer(object):
         print('pn:',avg_pn_correct_num_topn_IoU, all_pn_iou/ all_retrievd)
         print('=================================')
 
-        acc = all_iou/all_retrievd
+        acc = all_pn_iou/all_retrievd
         return acc
 
 
     def calculate_IoU(self, i0, i1):
+        if i0[0] == i0[1]:
+            i0[0] -= 0.5
+            i0[1] += 0.5
         union = (min(i0[0], i1[0]), max(i0[1], i1[1]))
         inter = (max(i0[0], i1[0]), min(i0[1], i1[1]))
         if union[1] - union[0] < 1e-5:
@@ -290,10 +298,9 @@ class Trainer(object):
     def propose_field(self, frame_score, batch_size, i_batch, i, gt_windows):
 
         frame_pred = frame_score[i]
-        if max(frame_pred) < 0.5:
-            frame_pred = (frame_pred - np.mean(frame_pred)) / np.std(frame_pred)
-            scale = max(max(frame_pred), -min(frame_pred)) / 0.5
-            frame_pred = frame_pred / (scale + 1e-3) + 0.5
+        frame_pred = (frame_pred - np.mean(frame_pred)) / np.std(frame_pred)
+        scale = max(max(frame_pred), -min(frame_pred)) / 0.5
+        frame_pred = frame_pred / (scale + 1e-3) + 0.5
         frame_pred_in = np.log(frame_pred)
         frame_pred_out = np.log(1 - frame_pred)
         candidate_num = 1
@@ -342,7 +349,7 @@ class Trainer(object):
 
 if __name__ == '__main__':
 
-    config_file = '../configs/config_rnn_pn.json'
+    config_file = '../configs/config_final_tacos.json'
 
     with open(config_file, 'r') as fr:
         config = json.load(fr)
