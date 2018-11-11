@@ -29,7 +29,7 @@
     "word2vec": "/home1/zhangzhu/data/word2vec/word2vec.bin",
 
 
-    "is_origin_dataset": false,
+    "is_origin_dataset": true,
     "train_json": "../data/activity-net/train.json",
     "val_json": "../data/activity-net/val_1.json",
     "test_json": "../data/activity-net/val_2.json",

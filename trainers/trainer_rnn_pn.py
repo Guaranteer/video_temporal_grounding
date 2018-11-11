@@ -291,9 +291,10 @@ class Trainer(object):
 
         frame_pred = frame_score[i]
         if max(frame_pred) < 0.5:
-            frame_pred = (frame_pred - np.mean(frame_pred)) / np.std(frame_pred)
-            scale = max(max(frame_pred), -min(frame_pred)) / 0.5
-            frame_pred = frame_pred / (scale + 1e-3) + 0.5
+            frame_pred = frame_pred - np.mean(frame_pred) + 0.5
+            # frame_pred = (frame_pred - np.mean(frame_pred)) / np.std(frame_pred)
+            # scale = max(max(frame_pred), -min(frame_pred)) / 0.5
+            # frame_pred = frame_pred / (scale + 1e-3) + 0.5
         frame_pred_in = np.log(frame_pred)
         frame_pred_out = np.log(1 - frame_pred)
         candidate_num = 1
