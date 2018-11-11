@@ -281,12 +281,11 @@ class Trainer(object):
 
 
     def calculate_IoU(self, i0, i1):
-        if i0[0] == i0[1]:
-            i0[0] -= 0.5
-            i0[1] += 0.5
         union = (min(i0[0], i1[0]), max(i0[1], i1[1]))
         inter = (max(i0[0], i1[0]), min(i0[1], i1[1]))
-        iou = 1.0 * (inter[1] - inter[0]) / (union[1] - union[0])
+        if union[1] - union[0] < -(1e-5):
+            return 0
+        iou = 1.0 * (inter[1] - inter[0] + 1) / (union[1] - union[0] + 1)
         if iou < 0:
             iou = 0
         return iou
