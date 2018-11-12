@@ -293,6 +293,8 @@ class Trainer(object):
     def propose_field(self, frame_score, batch_size, i_batch, i, gt_windows):
 
         frame_pred = frame_score[i]
+        if max(frame_pred) < 0.5:
+            frame_pred = frame_pred - np.mean(frame_pred) + 0.5
         # frame_pred = (frame_pred - np.mean(frame_pred)) / np.std(frame_pred)
         # scale = max(max(frame_pred), -min(frame_pred)) / 0.5
         # frame_pred = frame_pred / (scale + 1e-3) + 0.5

@@ -84,15 +84,15 @@ class Trainer(object):
 
 
         for i_epoch in range(self.params['max_epoches']):
-            # t_begin = time.time()
-            # avg_batch_loss = self.train_one_epoch(i_epoch, self.train_proc, self.model.loss)
-            # t_end = time.time()
-            # print('Epoch %d ends. Average loss %.3f. %.3f seconds/epoch' % (i_epoch, avg_batch_loss, t_end - t_begin))
-
             t_begin = time.time()
-            avg_batch_loss = self.train_one_epoch(i_epoch, self.pn_train_proc, self.model.pn_loss, post_train=False)
+            avg_batch_loss = self.train_one_epoch(i_epoch, self.train_proc, self.model.loss)
             t_end = time.time()
             print('Epoch %d ends. Average loss %.3f. %.3f seconds/epoch' % (i_epoch, avg_batch_loss, t_end - t_begin))
+
+            # t_begin = time.time()
+            # avg_batch_loss = self.train_one_epoch(i_epoch, self.pn_train_proc, self.model.pn_loss, post_train=False)
+            # t_end = time.time()
+            # print('Epoch %d ends. Average loss %.3f. %.3f seconds/epoch' % (i_epoch, avg_batch_loss, t_end - t_begin))
 
 
             if i_epoch % self.params['evaluate_interval'] == 0 and i_epoch != 0:
@@ -103,7 +103,7 @@ class Trainer(object):
                 train_acc = self.evaluate(self.train_loader)
                 print('=================================')
                 print('valid set evaluation')
-                valid_acc = self.evaluate(self.val_loader)
+                valid_acc = self.evaluate(self.test_loader)
                 print('=================================')
                 # print('test set evaluation')
                 # test_acc = self.evaluate(self.test_loader)
@@ -111,7 +111,7 @@ class Trainer(object):
             else:
                 print('=================================')
                 print('valid set evaluation')
-                valid_acc = self.evaluate(self.val_loader)
+                valid_acc = self.evaluate(self.test_loader)
                 print('=================================')
 
             if valid_acc > best_epoch_acc:
@@ -240,19 +240,19 @@ class Trainer(object):
 
 
             for i in range(batch_size):
-                pn_start_end = np.argmax(predict_start_end[i],0)
-                pn_result = self.calculate_IoU(pn_start_end, gt_windows[i])
-                all_pn_iou += pn_result
-                for j in range(len(IoU_thresh)):
-                    if pn_result >= IoU_thresh[j]:
-                        all_pn_correct_num_topn_IoU[0][j] += 1.0
-
-                # predict_score, predict_windows = self.propose_field(frame_score, batch_size, i_batch, i, gt_windows)
-                # propose_result = self.calculate_IoU(predict_windows[0], gt_windows[i])
-                # all_iou += propose_result
+                # pn_start_end = np.argmax(predict_start_end[i],0)
+                # pn_result = self.calculate_IoU(pn_start_end, gt_windows[i])
+                # all_pn_iou += pn_result
                 # for j in range(len(IoU_thresh)):
-                #     if propose_result >= IoU_thresh[j]:
-                #         all_correct_num_topn_IoU[0][j] += 1.0
+                #     if pn_result >= IoU_thresh[j]:
+                #         all_pn_correct_num_topn_IoU[0][j] += 1.0
+
+                predict_score, predict_windows = self.propose_field(frame_score, batch_size, i_batch, i, gt_windows)
+                propose_result = self.calculate_IoU(predict_windows[0], gt_windows[i])
+                all_iou += propose_result
+                for j in range(len(IoU_thresh)):
+                    if propose_result >= IoU_thresh[j]:
+                        all_correct_num_topn_IoU[0][j] += 1.0
 
 
 
@@ -278,7 +278,7 @@ class Trainer(object):
         print('pn:',avg_pn_correct_num_topn_IoU, all_pn_iou/ all_retrievd)
         print('=================================')
 
-        acc = all_pn_iou/all_retrievd
+        acc = all_iou/all_retrievd
         return acc
 
 
@@ -296,9 +296,11 @@ class Trainer(object):
     def propose_field(self, frame_score, batch_size, i_batch, i, gt_windows):
 
         frame_pred = frame_score[i]
-        frame_pred = (frame_pred - np.mean(frame_pred)) / np.std(frame_pred)
-        scale = max(max(frame_pred), -min(frame_pred)) / 0.5
-        frame_pred = frame_pred / (scale + 1e-3) + 0.5
+        if max(frame_pred) < 0.5:
+            frame_pred = frame_pred - np.mean(frame_pred) + 0.5
+        # frame_pred = (frame_pred - np.mean(frame_pred)) / np.std(frame_pred)
+        # scale = max(max(frame_pred), -min(frame_pred)) / 0.5
+        # frame_pred = frame_pred / (scale + 1e-3) + 0.5
         frame_pred_in = np.log(frame_pred)
         frame_pred_out = np.log(1 - frame_pred)
         candidate_num = 1
