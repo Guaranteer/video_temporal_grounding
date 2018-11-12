@@ -48,6 +48,10 @@ class Model(object):
 
         with tf.variable_scope("Frame_Embedding_Encoder_Layer"):
             input_frame_vecs = tf.contrib.layers.dropout(self.frame_vecs, self.dropout, is_training=self.is_training)
+            # frame_embedding = conv_utils.linear_mapping(input_frame_vecs, self.hidden_size,
+            #                                              dropout=self.dropout,
+            #                                              var_scope_name="linear_mapping_before_rnn")
+            # frame_embedding = transformer.normalize(frame_embedding)
             frame_embedding, _ = layers.dynamic_origin_bilstm_layer(input_frame_vecs, self.hidden_size, 'frame_embedding',
                                                                 input_len=self.frame_len)
 
@@ -57,6 +61,10 @@ class Model(object):
         with tf.variable_scope("Ques_Embedding_Encoder_Layer"):
 
             input_ques_vecs = tf.contrib.layers.dropout(self.ques_vecs, self.dropout, is_training=self.is_training)
+            # ques_embedding = conv_utils.linear_mapping(input_ques_vecs, self.hidden_size,
+            #                                              dropout=self.dropout,
+            #                                              var_scope_name="linear_mapping_before_rnn")
+            # ques_embedding = transformer.normalize(ques_embedding)
             ques_embedding, ques_states = layers.dynamic_origin_bilstm_layer(input_ques_vecs, self.hidden_size, 'ques_embedding',
                                                                            input_len=self.ques_len)
 
@@ -91,6 +99,11 @@ class Model(object):
 
         with tf.variable_scope("Model_Encoder_Layer"):
             attention_outputs = tf.contrib.layers.dropout(attention_outputs, self.dropout, is_training=self.is_training)
+
+            # attention_outputs = conv_utils.linear_mapping(attention_outputs, self.hidden_size,
+            #                                              dropout=self.dropout,
+            #                                              var_scope_name="linear_mapping_before_rnn")
+            # attention_outputs = transformer.normalize(attention_outputs)
             model_outputs, _ = layers.dynamic_origin_bilstm_layer(attention_outputs, self.hidden_size, 'model_layer',
                                                                     input_len=self.frame_len)
 
